@@ -14,53 +14,63 @@ This means that you can edit your source code normally in your favorite editor o
 machine, while still being able to compile and test inside of the Docker container (the
 same environment used in our Continuous Integration system).
 
-When the execution of `devenv.{ps1,sh}` completes, you should find the console logged into the container. As a final step, in order to get the `acs-engine` tool ready, you should build the sources with:
+When the execution of `devenv.{ps1,sh}` completes, you should find the console logged into the container.
+
+Now we need to do a one-time call to setup the prerequisites.
+
+```
+make bootstrap
+```
+
+As a final step, in order to get the `acs-engine` tool ready, you should build the sources with:
 
 ```
 make build
 ```
 
-When the build process completes, verify that `acs-engine` is available, invoking the command without parameters. 
+When the build process completes, verify that `acs-engine` is available, invoking the command without parameters.
 You should see something like this:
 
 ```
-# acs-engine
-Usage of acs-engine:
-  -artifacts string
-    	directory where artifacts will be written
-  -caCertificatePath string
-    	the path to the CA Certificate file
-  -caKeyPath string
-    	the path to the CA key file
-  -classicMode
-    	enable classic parameters and outputs
-  -noPrettyPrint
-    	do not pretty print output
-  -parametersOnly
-    	only output the parameters
+# ./bin/acs-engine
+ACS-Engine deploys and manages Kubernetes, Swarm Mode, and DC/OS clusters in Azure
+
+Usage:
+  acs-engine [command]
+
+Available Commands:
+  generate    Generate an Azure Resource Manager template
+  help        Help about any command
+  version     Print the version of ACS-Engine
+
+Flags:
+      --debug   enable verbose debug logs
+  -h, --help    help for acs-engine
+
+Use "acs-engine [command] --help" for more information about a command.
 ```
 
 [Here's a quick demo video showing the dev/build/test cycle with this setup.](https://www.youtube.com/watch?v=lc6UZmqxQMs)
 
-# Downloading and Building ACS Engine Locally 
+# Downloading and Building ACS Engine Locally
 
-ACS Engine can also be built and run natively on Windows, OS X, and Linux. Instructions below: 
+ACS Engine can also be built and run natively on Windows, OS X, and Linux. Instructions below:
 
 ## Windows
 
 Requirements:
 - Git for Windows. Download and install [here](https://git-scm.com/download/win)
 - Go for Windows. Download and install [here](https://golang.org/dl/), accept all defaults.
-- Powershell 
+- Powershell
 
-Build Steps: 
- 
+Build Steps:
+
 1. Setup your go workspace.  This example assumes you are using `c:\gopath` as your workspace:
   1. Windows key-R to open the run prompt
   2. `rundll32 sysdm.cpl,EditEnvironmentVariables` to open the system variables
   3. add `c:\go\bin` to your PATH variables
   4. click "new" and add new environment variable GOPATH and set to `c:\gopath`
-  
+
 Build acs-engine:
   1. Windows key-R to open the run prompt
   2. `cmd` to open command prompt
@@ -77,7 +87,7 @@ Build acs-engine:
 Requirements:
 - Go for OS X. Download and install [here](https://golang.org/dl/)
 
-Build Steps: 
+Build Steps:
 
   1. Open a command prompt to setup your gopath:
   2. `mkdir $HOME/gopath`
@@ -85,8 +95,8 @@ Build Steps:
   ```
   export PATH=$PATH:/usr/local/go/bin
   export GOPATH=$HOME/gopath
-  source $HOME/.sh_profile
   ```
+  4. `source $HOME/.bash_profile`
 Build acs-engine:
   1. type `go get github.com/Azure/acs-engine` to get the acs-engine Github project
   2. type `go get all` to get the supporting components
@@ -102,7 +112,7 @@ Requirements:
   - sudo tar -C /usr/local -xzf go$VERSION.$OS-$ARCH.tar.gz (replace with your downloaded archive)
 - `git`
 
-Build Steps: 
+Build Steps:
 
   1. Setup Go path:
   2. `mkdir $HOME/gopath`
@@ -111,8 +121,8 @@ Build Steps:
   export PATH=$PATH:/usr/local/go/bin
   export GOPATH=$HOME/gopath
   ```
-  4. source $HOME/.profile
- 
+  4. `source $HOME/.profile`
+
 Build acs-engine:
   1. type `go get github.com/Azure/acs-engine` to get the acs-engine Github project
   2. type `go get all` to get the supporting components
@@ -138,7 +148,7 @@ Here is an example of how to generate a new deployment.  This example assumes yo
 
 1. Before starting ensure you have generated a valid [SSH Public/Private key pair](ssh.md#ssh-key-generation).
 2. edit [examples/kubernetes.json](../examples/kubernetes.json) and fill in the blanks.
-3. run `acs-engine examples/kubernetes.json` to generate the templates in the _output/Kubernetes-UNIQUEID directory.  The UNIQUEID is a hash of your master's FQDN prefix.
+3. run `./bin/acs-engine generate examples/kubernetes.json` to generate the templates in the _output/Kubernetes-UNIQUEID directory.  The UNIQUEID is a hash of your master's FQDN prefix.
 4. now you can use the `azuredeploy.json` and `azuredeploy.parameters.json` for deployment as described in [deployment usage](../README.md#deployment-usage).
 
 # Deploying templates
