@@ -136,10 +136,10 @@ func ConvertOrchestratorVersionProfileToV20170930(api *OrchestratorVersionProfil
 	vProfile.OrchestratorVersion = api.OrchestratorVersion
 	vProfile.OrchestratorRelease = api.OrchestratorRelease
 	vProfile.Default = api.Default
-	if api.Upgradables != nil {
-		vProfile.Upgradables = make([]*v20170930.OrchestratorEdition, len(api.Upgradables))
-		for i, h := range api.Upgradables {
-			vProfile.Upgradables[i] = &v20170930.OrchestratorEdition{
+	if api.Upgrades != nil {
+		vProfile.Upgrades = make([]*v20170930.OrchestratorProfile, len(api.Upgrades))
+		for i, h := range api.Upgrades {
+			vProfile.Upgrades[i] = &v20170930.OrchestratorProfile{
 				OrchestratorRelease: h.OrchestratorRelease,
 				OrchestratorVersion: h.OrchestratorVersion,
 			}
@@ -164,10 +164,10 @@ func ConvertOrchestratorVersionProfileToVLabs(api *OrchestratorVersionProfile) *
 	vlabsProfile.OrchestratorVersion = api.OrchestratorVersion
 	vlabsProfile.OrchestratorRelease = api.OrchestratorRelease
 	vlabsProfile.Default = api.Default
-	if api.Upgradables != nil {
-		vlabsProfile.Upgradables = make([]*vlabs.OrchestratorEdition, len(api.Upgradables))
-		for i, h := range api.Upgradables {
-			vlabsProfile.Upgradables[i] = &vlabs.OrchestratorEdition{
+	if api.Upgrades != nil {
+		vlabsProfile.Upgrades = make([]*vlabs.OrchestratorProfile, len(api.Upgrades))
+		for i, h := range api.Upgrades {
+			vlabsProfile.Upgrades[i] = &vlabs.OrchestratorProfile{
 				OrchestratorRelease: h.OrchestratorRelease,
 				OrchestratorVersion: h.OrchestratorVersion,
 			}
@@ -503,13 +503,20 @@ func convertLinuxProfileToV20170131(api *LinuxProfile, obj *v20170131.LinuxProfi
 	}
 }
 
-func convertExtensionProfileToVLabs(api *ExtensionProfile, vlabs *vlabs.ExtensionProfile) {
-	vlabs.Name = api.Name
-	vlabs.Version = api.Version
-	vlabs.ExtensionParameters = api.ExtensionParameters
-	vlabs.RootURL = api.RootURL
-	vlabs.Script = api.Script
-	vlabs.URLQuery = api.URLQuery
+func convertExtensionProfileToVLabs(api *ExtensionProfile, obj *vlabs.ExtensionProfile) {
+	obj.Name = api.Name
+	obj.Version = api.Version
+	obj.ExtensionParameters = api.ExtensionParameters
+	if api.ExtensionParametersKeyVaultRef != nil {
+		obj.ExtensionParametersKeyVaultRef = &vlabs.KeyvaultSecretRef{
+			VaultID:       api.ExtensionParametersKeyVaultRef.VaultID,
+			SecretName:    api.ExtensionParametersKeyVaultRef.SecretName,
+			SecretVersion: api.ExtensionParametersKeyVaultRef.SecretVersion,
+		}
+	}
+	obj.RootURL = api.RootURL
+	obj.Script = api.Script
+	obj.URLQuery = api.URLQuery
 }
 
 func convertExtensionToVLabs(api *Extension, vlabs *vlabs.Extension) {
@@ -541,6 +548,7 @@ func convertLinuxProfileToVLabs(obj *LinuxProfile, vlabsProfile *vlabs.LinuxProf
 		convertKeyVaultSecretsToVlabs(&s, secret)
 		vlabsProfile.Secrets = append(vlabsProfile.Secrets, *secret)
 	}
+	vlabsProfile.ScriptRootURL = obj.ScriptRootURL
 }
 
 func convertWindowsProfileToV20160930(api *WindowsProfile, v20160930 *v20160930.WindowsProfile) {
@@ -566,6 +574,7 @@ func convertWindowsProfileToV20170701(api *WindowsProfile, v20170701Profile *v20
 func convertWindowsProfileToVLabs(api *WindowsProfile, vlabsProfile *vlabs.WindowsProfile) {
 	vlabsProfile.AdminUsername = api.AdminUsername
 	vlabsProfile.AdminPassword = api.AdminPassword
+	vlabsProfile.ImageVersion = api.ImageVersion
 	vlabsProfile.Secrets = []vlabs.KeyVaultSecrets{}
 	for _, s := range api.Secrets {
 		secret := &vlabs.KeyVaultSecrets{}
@@ -655,6 +664,8 @@ func convertKubernetesConfigToVLabs(api *KubernetesConfig, vlabs *vlabs.Kubernet
 	vlabs.CustomHyperkubeImage = api.CustomHyperkubeImage
 	vlabs.UseInstanceMetadata = api.UseInstanceMetadata
 	vlabs.EnableRbac = api.EnableRbac
+	vlabs.GCHighThreshold = api.GCHighThreshold
+	vlabs.GCLowThreshold = api.GCLowThreshold
 }
 
 func convertMasterProfileToV20160930(api *MasterProfile, v20160930 *v20160930.MasterProfile) {
@@ -712,6 +723,7 @@ func convertMasterProfileToVLabs(api *MasterProfile, vlabsProfile *vlabs.MasterP
 		convertExtensionToVLabs(&extension, vlabsExtension)
 		vlabsProfile.Extensions = append(vlabsProfile.Extensions, *vlabsExtension)
 	}
+	vlabsProfile.Distro = vlabs.Distro(api.Distro)
 }
 
 func convertKeyVaultSecretsToVlabs(api *KeyVaultSecrets, vlabsSecrets *vlabs.KeyVaultSecrets) {
@@ -803,6 +815,7 @@ func convertAgentPoolProfileToVLabs(api *AgentPoolProfile, p *vlabs.AgentPoolPro
 		convertExtensionToVLabs(&extension, vlabsExtension)
 		p.Extensions = append(p.Extensions, *vlabsExtension)
 	}
+	p.Distro = vlabs.Distro(api.Distro)
 }
 
 func convertDiagnosticsProfileToV20160930(api *DiagnosticsProfile, dp *v20160930.DiagnosticsProfile) {

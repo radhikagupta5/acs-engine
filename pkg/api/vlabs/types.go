@@ -102,7 +102,8 @@ type LinuxProfile struct {
 	SSH           struct {
 		PublicKeys []PublicKey `json:"publicKeys" validate:"required,len=1"`
 	} `json:"ssh" validate:"required"`
-	Secrets []KeyVaultSecrets `json:"secrets,omitempty"`
+	Secrets       []KeyVaultSecrets `json:"secrets,omitempty"`
+	ScriptRootURL string            `json:"scriptroot,omitempty"`
 }
 
 // PublicKey represents an SSH key for LinuxProfile
@@ -114,6 +115,7 @@ type PublicKey struct {
 type WindowsProfile struct {
 	AdminUsername string            `json:"adminUsername,omitempty"`
 	AdminPassword string            `json:"adminPassword,omitempty"`
+	ImageVersion  string            `json:"imageVersion,omitempty"`
 	Secrets       []KeyVaultSecrets `json:"secrets,omitempty"`
 }
 
@@ -197,6 +199,8 @@ type KubernetesConfig struct {
 	CustomHyperkubeImage             string  `json:"customHyperkubeImage,omitempty"`
 	UseInstanceMetadata              bool    `json:"useInstanceMetadata,omitempty"`
 	EnableRbac                       bool    `json:"enableRbac,omitempty"`
+	GCHighThreshold                  int     `json:"gchighthreshold,omitempty"`
+	GCLowThreshold                   int     `json:"gclowthreshold,omitempty"`
 }
 
 // MasterProfile represents the definition of the master cluster
@@ -214,6 +218,7 @@ type MasterProfile struct {
 	OAuthEnabled             bool        `json:"oauthEnabled"`
 	PreProvisionExtension    *Extension  `json:"preProvisionExtension"`
 	Extensions               []Extension `json:"extensions"`
+	Distro                   Distro      `json:"distro,omitempty"`
 
 	// subnet is internal
 	subnet string
@@ -229,13 +234,14 @@ type ClassicAgentPoolProfileType string
 
 // ExtensionProfile represents an extension definition
 type ExtensionProfile struct {
-	Name                string `json:"name"`
-	Version             string `json:"version"`
-	ExtensionParameters string `json:"extensionParameters"`
-	RootURL             string `json:"rootURL"`
+	Name                           string             `json:"name"`
+	Version                        string             `json:"version"`
+	ExtensionParameters            string             `json:"extensionParameters,omitempty"`
+	ExtensionParametersKeyVaultRef *KeyvaultSecretRef `json:"parametersKeyvaultSecretRef,omitempty"`
+	RootURL                        string             `json:"rootURL,omitempty"`
 	// This is only needed for preprovision extensions and it needs to be a bash script
-	Script   string `json:"script"`
-	URLQuery string `json:"urlQuery"`
+	Script   string `json:"script,omitempty"`
+	URLQuery string `json:"urlQuery,omitempty"`
 }
 
 // Extension represents an extension definition in the master or agentPoolProfile
@@ -259,6 +265,7 @@ type AgentPoolProfile struct {
 	DiskSizesGB         []int  `json:"diskSizesGB,omitempty" validate:"max=4,dive,min=1,max=1023"`
 	VnetSubnetID        string `json:"vnetSubnetID,omitempty"`
 	IPAddressCount      int    `json:"ipAddressCount,omitempty" validate:"min=0,max=256"`
+	Distro              Distro `json:"distro,omitempty"`
 
 	// subnet is internal
 	subnet string
@@ -307,6 +314,9 @@ type KeyVaultCertificate struct {
 // OSType represents OS types of agents
 type OSType string
 
+// Distro represents Linux distro to use for Linux VMs
+type Distro string
+
 // HasWindows returns true if the cluster contains windows
 func (p *Properties) HasWindows() bool {
 	for _, agentPoolProfile := range p.AgentPoolProfiles {
@@ -342,6 +352,11 @@ func (m *MasterProfile) IsStorageAccount() bool {
 	return m.StorageProfile == StorageAccount
 }
 
+// IsRHEL returns true if the master specified a RHEL distro
+func (m *MasterProfile) IsRHEL() bool {
+	return m.Distro == RHEL
+}
+
 // IsCustomVNET returns true if the customer brought their own VNET
 func (a *AgentPoolProfile) IsCustomVNET() bool {
 	return len(a.VnetSubnetID) > 0
@@ -355,6 +370,11 @@ func (a *AgentPoolProfile) IsWindows() bool {
 // IsLinux returns true if the agent pool is linux
 func (a *AgentPoolProfile) IsLinux() bool {
 	return a.OSType == Linux
+}
+
+// IsRHEL returns true if the agent pool specified a RHEL distro
+func (a *AgentPoolProfile) IsRHEL() bool {
+	return a.OSType == Linux && a.Distro == RHEL
 }
 
 // IsAvailabilitySets returns true if the customer specified disks

@@ -98,7 +98,9 @@ type LinuxProfile struct {
 	SSH           struct {
 		PublicKeys []PublicKey `json:"publicKeys"`
 	} `json:"ssh"`
-	Secrets []KeyVaultSecrets `json:"secrets,omitempty"`
+	Secrets       []KeyVaultSecrets `json:"secrets,omitempty"`
+	Distro        Distro            `json:"distro,omitempty"`
+	ScriptRootURL string            `json:"scriptroot,omitempty"`
 }
 
 // PublicKey represents an SSH key for LinuxProfile
@@ -110,6 +112,7 @@ type PublicKey struct {
 type WindowsProfile struct {
 	AdminUsername string            `json:"adminUsername"`
 	AdminPassword string            `json:"adminPassword"`
+	ImageVersion  string            `json:"imageVersion"`
 	Secrets       []KeyVaultSecrets `json:"secrets,omitempty"`
 }
 
@@ -130,6 +133,8 @@ const (
 	// Migrating means resource is being migrated from one subscription or
 	// resource group to another
 	Migrating ProvisioningState = "Migrating"
+	// Upgrading means an existing ContainerService resource is being upgraded
+	Upgrading ProvisioningState = "Upgrading"
 )
 
 // OrchestratorProfile contains Orchestrator properties
@@ -166,6 +171,8 @@ type KubernetesConfig struct {
 	CustomHyperkubeImage             string  `json:"customHyperkubeImage,omitempty"`
 	UseInstanceMetadata              bool    `json:"useInstanceMetadata,omitempty"`
 	EnableRbac                       bool    `json:"enableRbac,omitempty"`
+	GCHighThreshold                  int     `json:"gchighthreshold,omitempty"`
+	GCLowThreshold                   int     `json:"gclowthreshold,omitempty"`
 }
 
 // MasterProfile represents the definition of the master cluster
@@ -184,6 +191,7 @@ type MasterProfile struct {
 	OAuthEnabled             bool        `json:"oauthEnabled"`
 	PreprovisionExtension    *Extension  `json:"preProvisionExtension"`
 	Extensions               []Extension `json:"extensions"`
+	Distro                   Distro      `json:"distro,omitempty"`
 
 	// Master LB public endpoint/FQDN with port
 	// The format will be FQDN:2376
@@ -193,13 +201,14 @@ type MasterProfile struct {
 
 // ExtensionProfile represents an extension definition
 type ExtensionProfile struct {
-	Name                string `json:"name"`
-	Version             string `json:"version"`
-	ExtensionParameters string `json:"extensionParameters"`
-	RootURL             string `json:"rootURL"`
+	Name                           string             `json:"name"`
+	Version                        string             `json:"version"`
+	ExtensionParameters            string             `json:"extensionParameters,omitempty"`
+	ExtensionParametersKeyVaultRef *KeyvaultSecretRef `json:"parametersKeyvaultSecretRef,omitempty"`
+	RootURL                        string             `json:"rootURL,omitempty"`
 	// This is only needed for preprovision extensions and it needs to be a bash script
-	Script   string `json:"script"`
-	URLQuery string `json:"urlQuery"`
+	Script   string `json:"script,omitempty"`
+	URLQuery string `json:"urlQuery,omitempty"`
 }
 
 // Extension represents an extension definition in the master or agentPoolProfile
@@ -224,6 +233,7 @@ type AgentPoolProfile struct {
 	VnetSubnetID        string `json:"vnetSubnetID,omitempty"`
 	Subnet              string `json:"subnet"`
 	IPAddressCount      int    `json:"ipAddressCount,omitempty"`
+	Distro              Distro `json:"distro,omitempty"`
 
 	FQDN                  string            `json:"fqdn,omitempty"`
 	CustomNodeLabels      map[string]string `json:"customNodeLabels,omitempty"`
@@ -251,7 +261,7 @@ type VMDiagnostics struct {
 	StorageURL *neturl.URL `json:"storageUrl"`
 }
 
-// JumpboxProfile dscribes properties of the jumpbox setup
+// JumpboxProfile describes properties of the jumpbox setup
 // in the ACS container cluster.
 type JumpboxProfile struct {
 	OSType    OSType `json:"osType"`
@@ -289,6 +299,9 @@ type KeyVaultCertificate struct {
 // OSType represents OS types of agents
 type OSType string
 
+// Distro represents Linux distro to use for Linux VMs
+type Distro string
+
 // HostedMasterProfile defines properties for a hosted master
 type HostedMasterProfile struct {
 	// Master public endpoint/FQDN with port
@@ -296,6 +309,10 @@ type HostedMasterProfile struct {
 	// Not used during PUT, returned as part of GETFQDN
 	FQDN      string `json:"fqdn,omitempty"`
 	DNSPrefix string `json:"dnsPrefix"`
+	// Subnet holds the CIDR which defines the Azure Subnet in which
+	// Agents will be provisioned. This is stored on the HostedMasterProfile
+	// and will become `masterSubnet` in the compiled template.
+	Subnet string `json:"subnet"`
 }
 
 // AADProfile specifies attributes for AAD integration
@@ -356,25 +373,12 @@ type V20170701ARMContainerService struct {
 	*v20170701.ContainerService
 }
 
-// VlabsUpgradeContainerService is the type we read and write from file
-// needed because the json that is sent to ARM and acs-engine
-// is different from the json that the ACS RP Api gets from ARM
-type VlabsUpgradeContainerService struct {
-	TypeMeta
-	*vlabs.UpgradeContainerService
-}
-
 // V20170831ARMManagedContainerService is the type we read and write from file
 // needed because the json that is sent to ARM and acs-engine
 // is different from the json that the ACS RP Api gets from ARM
 type V20170831ARMManagedContainerService struct {
 	TypeMeta
 	*v20170831.ManagedCluster
-}
-
-// UpgradeContainerService API model
-type UpgradeContainerService struct {
-	OrchestratorProfile *OrchestratorProfile `json:"orchestratorProfile,omitempty"`
 }
 
 // HasWindows returns true if the cluster contains windows
@@ -428,6 +432,11 @@ func (m *MasterProfile) IsStorageAccount() bool {
 	return m.StorageProfile == StorageAccount
 }
 
+// IsRHEL returns true if the master specified a RHEL distro
+func (m *MasterProfile) IsRHEL() bool {
+	return m.Distro == RHEL
+}
+
 // IsCustomVNET returns true if the customer brought their own VNET
 func (a *AgentPoolProfile) IsCustomVNET() bool {
 	return len(a.VnetSubnetID) > 0
@@ -441,6 +450,11 @@ func (a *AgentPoolProfile) IsWindows() bool {
 // IsLinux returns true if the agent pool is linux
 func (a *AgentPoolProfile) IsLinux() bool {
 	return a.OSType == Linux
+}
+
+// IsRHEL returns true if the agent pool specified a RHEL distro
+func (a *AgentPoolProfile) IsRHEL() bool {
+	return a.OSType == Linux && a.Distro == RHEL
 }
 
 // IsAvailabilitySets returns true if the customer specified disks

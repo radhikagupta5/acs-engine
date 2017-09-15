@@ -37,6 +37,7 @@ type DCOSSpecConfig struct {
 	DCOS173BootstrapDownloadURL     string
 	DCOS188BootstrapDownloadURL     string
 	DCOS190BootstrapDownloadURL     string
+	DCOS110BootstrapDownloadURL     string
 	DCOSWindowsBootstrapDownloadURL string
 }
 
@@ -45,6 +46,7 @@ type KubernetesSpecConfig struct {
 	KubernetesImageBase              string
 	TillerImageBase                  string
 	KubeBinariesSASURLBase           string
+	WindowsTelemetryGUID             string
 	CNIPluginsDownloadURL            string
 	VnetCNILinuxPluginsDownloadURL   string
 	VnetCNIWindowsPluginsDownloadURL string
@@ -70,7 +72,7 @@ type AzureEnvironmentSpecConfig struct {
 	KubernetesSpecConfig KubernetesSpecConfig
 	DCOSSpecConfig       DCOSSpecConfig
 	EndpointConfig       AzureEndpointConfig
-	OSImageConfig        AzureOSImageConfig
+	OSImageConfig        map[api.Distro]AzureOSImageConfig
 }
 
 // Context represents the object that is passed to the package

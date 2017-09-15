@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"regexp"
@@ -36,6 +37,7 @@ const (
 	dcosCustomData173    = "dcoscustomdata173.t"
 	dcosCustomData188    = "dcoscustomdata188.t"
 	dcosCustomData190    = "dcoscustomdata190.t"
+	dcosCustomData110    = "dcoscustomdata110.t"
 	dcosProvision        = "dcosprovision.sh"
 	dcosWindowsProvision = "dcosWindowsProvision.ps1"
 )
@@ -271,6 +273,10 @@ func (t *TemplateGenerator) GenerateTemplate(containerService *api.ContainerServ
 		}
 	}()
 
+	if !ValidateDistro(containerService) {
+		return templateRaw, parametersRaw, certsGenerated, fmt.Errorf("Invalid distro")
+	}
+
 	var b bytes.Buffer
 	if err = templ.ExecuteTemplate(&b, baseFile, properties); err != nil {
 		return templateRaw, parametersRaw, certsGenerated, err
@@ -402,6 +408,23 @@ func GetCloudSpecConfig(location string) AzureEnvironmentSpecConfig {
 	}
 }
 
+// ValidateDistro checks if the requested orchestrator type is supported on the requested Linux distro.
+func ValidateDistro(cs *api.ContainerService) bool {
+	// Check Master distro
+	if cs.Properties.MasterProfile != nil && cs.Properties.MasterProfile.Distro == api.RHEL && cs.Properties.OrchestratorProfile.OrchestratorType != api.SwarmMode {
+		log.Fatalf("Orchestrator type %s not suported on RHEL Master", cs.Properties.OrchestratorProfile.OrchestratorType)
+		return false
+	}
+	// Check Agent distros
+	for _, agentProfile := range cs.Properties.AgentPoolProfiles {
+		if agentProfile.Distro == api.RHEL && cs.Properties.OrchestratorProfile.OrchestratorType != api.SwarmMode {
+			log.Fatalf("Orchestrator type %s not suported on RHEL Agent", cs.Properties.OrchestratorProfile.OrchestratorType)
+			return false
+		}
+	}
+	return true
+}
+
 // GetCloudTargetEnv determines and returns whether the region is a sovereign cloud which
 // have their own data compliance regulations (China/Germany/USGov) or standard
 //  Azure public cloud
@@ -427,10 +450,10 @@ func getParameters(cs *api.ContainerService, isClassicMode bool) (paramsMap, err
 
 	// Master Parameters
 	addValue(parametersMap, "location", location)
-	addValue(parametersMap, "osImageOffer", cloudSpecConfig.OSImageConfig.ImageOffer)
-	addValue(parametersMap, "osImageSKU", cloudSpecConfig.OSImageConfig.ImageSku)
-	addValue(parametersMap, "osImagePublisher", cloudSpecConfig.OSImageConfig.ImagePublisher)
-	addValue(parametersMap, "osImageVersion", cloudSpecConfig.OSImageConfig.ImageVersion)
+	addValue(parametersMap, "osImageOffer", cloudSpecConfig.OSImageConfig[api.Ubuntu].ImageOffer)
+	addValue(parametersMap, "osImageSKU", cloudSpecConfig.OSImageConfig[api.Ubuntu].ImageSku)
+	addValue(parametersMap, "osImagePublisher", cloudSpecConfig.OSImageConfig[api.Ubuntu].ImagePublisher)
+	addValue(parametersMap, "osImageVersion", cloudSpecConfig.OSImageConfig[api.Ubuntu].ImageVersion)
 	addValue(parametersMap, "fqdnEndpointSuffix", cloudSpecConfig.EndpointConfig.ResourceManagerVMDNSSuffix)
 	addValue(parametersMap, "targetEnvironment", GetCloudTargetEnv(location))
 	addValue(parametersMap, "linuxAdminUsername", properties.LinuxProfile.AdminUsername)
@@ -457,6 +480,9 @@ func getParameters(cs *api.ContainerService, isClassicMode bool) (paramsMap, err
 			addValue(parametersMap, "masterCount", properties.MasterProfile.Count)
 		}
 	}
+	if properties.HostedMasterProfile != nil {
+		addValue(parametersMap, "masterSubnet", properties.HostedMasterProfile.Subnet)
+	}
 	addValue(parametersMap, "sshRSAPublicKey", properties.LinuxProfile.SSH.PublicKeys[0].KeyData)
 	for i, s := range properties.LinuxProfile.Secrets {
 		addValue(parametersMap, fmt.Sprintf("linuxKeyVaultID%d", i), s.SourceVault.ID)
@@ -467,8 +493,19 @@ func getParameters(cs *api.ContainerService, isClassicMode bool) (paramsMap, err
 
 	//Swarm and SwarmMode Parameters
 	if properties.OrchestratorProfile.OrchestratorType == api.Swarm || properties.OrchestratorProfile.OrchestratorType == api.SwarmMode {
-		addValue(parametersMap, "dockerEngineDownloadRepo", cloudSpecConfig.DockerSpecConfig.DockerEngineRepo)
-		addValue(parametersMap, "dockerComposeDownloadURL", cloudSpecConfig.DockerSpecConfig.DockerComposeDownloadURL)
+		var dockerEngineRepo, dockerComposeDownloadURL string
+		if cloudSpecConfig.DockerSpecConfig.DockerEngineRepo == "" {
+			dockerEngineRepo = DefaultDockerEngineRepo
+		} else {
+			dockerEngineRepo = cloudSpecConfig.DockerSpecConfig.DockerEngineRepo
+		}
+		if cloudSpecConfig.DockerSpecConfig.DockerComposeDownloadURL == "" {
+			dockerComposeDownloadURL = DefaultDockerComposeURL
+		} else {
+			dockerComposeDownloadURL = cloudSpecConfig.DockerSpecConfig.DockerComposeDownloadURL
+		}
+		addValue(parametersMap, "dockerEngineDownloadRepo", dockerEngineRepo)
+		addValue(parametersMap, "dockerComposeDownloadURL", dockerComposeDownloadURL)
 	}
 
 	// Kubernetes Parameters
@@ -526,6 +563,8 @@ func getParameters(cs *api.ContainerService, isClassicMode bool) (paramsMap, err
 		addValue(parametersMap, "vnetCniWindowsPluginsURL", cloudSpecConfig.KubernetesSpecConfig.VnetCNIWindowsPluginsDownloadURL)
 		addValue(parametersMap, "calicoConfigURL", cloudSpecConfig.KubernetesSpecConfig.CalicoConfigDownloadURL)
 		addValue(parametersMap, "maxPods", properties.OrchestratorProfile.KubernetesConfig.MaxPods)
+		addValue(parametersMap, "gchighthreshold", properties.OrchestratorProfile.KubernetesConfig.GCHighThreshold)
+		addValue(parametersMap, "gclowthreshold", properties.OrchestratorProfile.KubernetesConfig.GCLowThreshold)
 
 		if properties.OrchestratorProfile.KubernetesConfig == nil ||
 			!properties.OrchestratorProfile.KubernetesConfig.UseManagedIdentity {
@@ -558,6 +597,8 @@ func getParameters(cs *api.ContainerService, isClassicMode bool) (paramsMap, err
 				dcosBootstrapURL = cloudSpecConfig.DCOSSpecConfig.DCOS188BootstrapDownloadURL
 			case api.DCOSRelease1Dot9:
 				dcosBootstrapURL = cloudSpecConfig.DCOSSpecConfig.DCOS190BootstrapDownloadURL
+			case api.DCOSRelease1Dot10:
+				dcosBootstrapURL = cloudSpecConfig.DCOSSpecConfig.DCOS110BootstrapDownloadURL
 			}
 		}
 		addValue(parametersMap, "dcosBootstrapURL", dcosBootstrapURL)
@@ -584,10 +625,14 @@ func getParameters(cs *api.ContainerService, isClassicMode bool) (paramsMap, err
 	if properties.HasWindows() {
 		addValue(parametersMap, "windowsAdminUsername", properties.WindowsProfile.AdminUsername)
 		addSecret(parametersMap, "windowsAdminPassword", properties.WindowsProfile.AdminPassword, false)
+		if properties.WindowsProfile.ImageVersion != "" {
+			addValue(parametersMap, "agentWindowsVersion", properties.WindowsProfile.ImageVersion)
+		}
 		if properties.OrchestratorProfile.OrchestratorType == api.Kubernetes {
 			KubernetesRelease := properties.OrchestratorProfile.OrchestratorRelease
 			addValue(parametersMap, "kubeBinariesSASURL", cloudSpecConfig.KubernetesSpecConfig.KubeBinariesSASURLBase+KubeConfigs[KubernetesRelease]["windowszip"])
 			addValue(parametersMap, "kubeBinariesVersion", api.KubernetesReleaseToVersion[KubernetesRelease])
+			addValue(parametersMap, "windowsTelemetryGUID", cloudSpecConfig.KubernetesSpecConfig.WindowsTelemetryGUID)
 		}
 		for i, s := range properties.WindowsProfile.Secrets {
 			addValue(parametersMap, fmt.Sprintf("windowsKeyVaultID%d", i), s.SourceVault.ID)
@@ -595,6 +640,17 @@ func getParameters(cs *api.ContainerService, isClassicMode bool) (paramsMap, err
 				addValue(parametersMap, fmt.Sprintf("windowsKeyVaultID%dCertificateURL%d", i, j), c.CertificateURL)
 				addValue(parametersMap, fmt.Sprintf("windowsKeyVaultID%dCertificateStore%d", i, j), c.CertificateStore)
 			}
+		}
+	}
+
+	for _, extension := range properties.ExtensionProfiles {
+		if extension.ExtensionParametersKeyVaultRef != nil {
+			addKeyvaultReference(parametersMap, fmt.Sprintf("%sParameters", extension.Name),
+				extension.ExtensionParametersKeyVaultRef.VaultID,
+				extension.ExtensionParametersKeyVaultRef.SecretName,
+				extension.ExtensionParametersKeyVaultRef.SecretVersion)
+		} else {
+			addValue(parametersMap, fmt.Sprintf("%sParameters", extension.Name), extension.ExtensionParameters)
 		}
 	}
 
@@ -659,6 +715,10 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		"IsDCOS19": func() bool {
 			return cs.Properties.OrchestratorProfile.OrchestratorType == api.DCOS &&
 				cs.Properties.OrchestratorProfile.OrchestratorRelease == api.DCOSRelease1Dot9
+		},
+		"IsDCOS110": func() bool {
+			return cs.Properties.OrchestratorProfile.OrchestratorType == api.DCOS &&
+				cs.Properties.OrchestratorProfile.OrchestratorRelease == api.DCOSRelease1Dot10
 		},
 		"IsKubernetesVersionGe": func(version string) bool {
 			orchestratorVersion, _ := semver.NewVersion(cs.Properties.OrchestratorProfile.OrchestratorVersion)
@@ -778,10 +838,10 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			return GetMasterAgentAllowedSizes()
 		},
 		"getSwarmVersions": func() string {
-			return getSwarmVersions(SwarmVersion, SwarmDockerComposeVersion)
+			return getSwarmVersions(api.SwarmVersion, api.SwarmDockerComposeVersion)
 		},
 		"GetSwarmModeVersions": func() string {
-			return getSwarmVersions(DockerCEVersion, DockerCEDockerComposeVersion)
+			return getSwarmVersions(api.DockerCEVersion, api.DockerCEDockerComposeVersion)
 		},
 		"GetSizeMap": func() string {
 			if t.ClassicMode {
@@ -984,6 +1044,44 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		"HasWindowsSecrets": func() bool {
 			return cs.Properties.WindowsProfile.HasSecrets()
 		},
+		"GetConfigurationScriptRootURL": func() string {
+			if cs.Properties.LinuxProfile.ScriptRootURL == "" {
+				return DefaultConfigurationScriptRootURL
+			}
+			return cs.Properties.LinuxProfile.ScriptRootURL
+		},
+		"GetMasterOSImageOffer": func() string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageOffer)
+		},
+		"GetMasterOSImagePublisher": func() string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImagePublisher)
+		},
+		"GetMasterOSImageSKU": func() string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageSku)
+		},
+		"GetMasterOSImageVersion": func() string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageVersion)
+		},
+		"GetAgentOSImageOffer": func(profile *api.AgentPoolProfile) string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageOffer)
+		},
+		"GetAgentOSImagePublisher": func(profile *api.AgentPoolProfile) string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImagePublisher)
+		},
+		"GetAgentOSImageSKU": func(profile *api.AgentPoolProfile) string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageSku)
+		},
+		"GetAgentOSImageVersion": func(profile *api.AgentPoolProfile) string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageVersion)
+		},
 		"PopulateClassicModeDefaultValue": func(attr string) string {
 			var val string
 			if !t.ClassicMode {
@@ -1049,11 +1147,17 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 					val = DefaultKubernetesServiceCIDR
 				case "kubeBinariesVersion":
 					val = api.KubernetesReleaseToVersion[cs.Properties.OrchestratorProfile.OrchestratorRelease]
+				case "windowsTelemetryGUID":
+					val = cloudSpecConfig.KubernetesSpecConfig.WindowsTelemetryGUID
 				case "caPrivateKey":
 					// The base64 encoded "NotAvailable"
 					val = "Tm90QXZhaWxhYmxlCg=="
 				case "dockerBridgeCidr":
 					val = DefaultDockerBridgeSubnet
+				case "gchighthreshold":
+					val = strconv.Itoa(cs.Properties.OrchestratorProfile.KubernetesConfig.GCHighThreshold)
+				case "gclowthreshold":
+					val = strconv.Itoa(cs.Properties.OrchestratorProfile.KubernetesConfig.GCLowThreshold)
 				default:
 					val = ""
 				}
@@ -1116,16 +1220,25 @@ func makeExtensionScriptCommands(extension *api.Extension, extensionProfiles []*
 		panic(fmt.Sprintf("%s extension referenced was not found in the extension profile", extension.Name))
 	}
 
+	extensionsParameterReference := fmt.Sprintf("parameters('%sParameters')", extensionProfile.Name)
 	scriptURL := getExtensionURL(extensionProfile.RootURL, extensionProfile.Name, extensionProfile.Version, extensionProfile.Script, extensionProfile.URLQuery)
 	scriptFilePath := fmt.Sprintf("/opt/azure/containers/extensions/%s/%s", extensionProfile.Name, extensionProfile.Script)
-	parameters := strings.Replace(extensionProfile.ExtensionParameters, "EXTENSION_LOOP_INDEX", copyIndex, -1)
-	return fmt.Sprintf("- sudo /usr/bin/curl -o %s --create-dirs \"%s\" \n- sudo /bin/chmod 744 %s \n- sudo %s %s > /var/log/%s-output.log",
-		scriptFilePath, scriptURL, scriptFilePath, scriptFilePath, parameters, extensionProfile.Name)
+	return fmt.Sprintf("- sudo /usr/bin/curl -o %s --create-dirs \"%s\" \n- sudo /bin/chmod 744 %s \n- sudo %s ',%s,' > /var/log/%s-output.log",
+		scriptFilePath, scriptURL, scriptFilePath, scriptFilePath, extensionsParameterReference, extensionProfile.Name)
 }
 
 func getPackageGUID(orchestratorType string, orchestratorRelease string, masterCount int) string {
 	if orchestratorType == api.DCOS {
 		switch orchestratorRelease {
+		case api.DCOSRelease1Dot10:
+			switch masterCount {
+			case 1:
+				return "c4ec6210f396b8e435177b82e3280a2cef0ce721"
+			case 3:
+				return "08197947cb57d479eddb077a429fa15c139d7d20"
+			case 5:
+				return "f286ad9d3641da5abb622e4a8781f73ecd8492fa"
+			}
 		case api.DCOSRelease1Dot9:
 			switch masterCount {
 			case 1:
@@ -1505,6 +1618,8 @@ func getSingleLineDCOSCustomData(orchestratorType, orchestratorRelease string,
 			yamlFilename = dcosCustomData188
 		case api.DCOSRelease1Dot9:
 			yamlFilename = dcosCustomData190
+		case api.DCOSRelease1Dot10:
+			yamlFilename = dcosCustomData110
 		}
 	default:
 		// it is a bug to get here
@@ -1699,13 +1814,12 @@ func getAgentPoolLinkedTemplateText(agentPoolProfile *api.AgentPoolProfile, orch
 }
 
 func internalGetPoolLinkedTemplateText(extTargetVMNamePrefix, orchestratorType, loopCount, loopOffset string, extensionProfile *api.ExtensionProfile) (string, error) {
-	dta, e := getLinkedTemplateTextForURL(orchestratorType, extensionProfile.Name, extensionProfile.Version, extensionProfile.RootURL, extensionProfile.URLQuery)
+	dta, e := getLinkedTemplateTextForURL(extensionProfile.RootURL, orchestratorType, extensionProfile.Name, extensionProfile.Version, extensionProfile.URLQuery)
 	if e != nil {
 		return "", e
 	}
-	parmetersString := strings.Replace(extensionProfile.ExtensionParameters, "EXTENSION_LOOP_INDEX",
-		"copyIndex(EXTENSION_LOOP_OFFSET)", -1)
-	dta = strings.Replace(dta, "EXTENSION_PARAMETERS_REPLACE", parmetersString, -1)
+	extensionsParameterReference := fmt.Sprintf("[parameters('%sParameters')]", extensionProfile.Name)
+	dta = strings.Replace(dta, "EXTENSION_PARAMETERS_REPLACE", extensionsParameterReference, -1)
 	dta = strings.Replace(dta, "EXTENSION_URL_REPLACE", extensionProfile.RootURL, -1)
 	dta = strings.Replace(dta, "EXTENSION_TARGET_VM_NAME_PREFIX", extTargetVMNamePrefix, -1)
 	dta = strings.Replace(dta, "EXTENSION_LOOP_COUNT", loopCount, -1)
