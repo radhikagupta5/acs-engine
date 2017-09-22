@@ -473,6 +473,7 @@ func convertVLabsLinuxProfile(vlabs *vlabs.LinuxProfile, api *LinuxProfile) {
 		convertVLabsKeyVaultSecrets(&s, secret)
 		api.Secrets = append(api.Secrets, *secret)
 	}
+	api.ScriptRootURL = vlabs.ScriptRootURL
 }
 
 func convertV20160930WindowsProfile(v20160930 *v20160930.WindowsProfile, api *WindowsProfile) {
@@ -598,14 +599,22 @@ func convertVLabsOrchestratorProfile(vlabscs *vlabs.OrchestratorProfile, api *Or
 		}
 		api.OrchestratorVersion = KubernetesReleaseToVersion[api.OrchestratorRelease]
 	case DCOS:
+		if vlabscs.DcosConfig != nil {
+			api.DcosConfig = &DcosConfig{}
+			convertVLabsDcosConfig(vlabscs.DcosConfig, api.DcosConfig)
+		}
 		switch vlabscs.OrchestratorRelease {
-		case DCOSRelease1Dot10, DCOSRelease1Dot9, DCOSRelease1Dot8, DCOSRelease1Dot7:
+		case DCOSRelease1Dot10, DCOSRelease1Dot9, DCOSRelease1Dot8:
 			api.OrchestratorRelease = vlabscs.OrchestratorRelease
 		default:
 			api.OrchestratorRelease = DCOSDefaultRelease
 		}
 		api.OrchestratorVersion = DCOSReleaseToVersion[api.OrchestratorRelease]
 	}
+}
+
+func convertVLabsDcosConfig(vlabs *vlabs.DcosConfig, api *DcosConfig) {
+	api.DcosWindowsBootstrapURL = vlabs.DcosWindowsBootstrapURL
 }
 
 func convertVLabsKubernetesConfig(vlabs *vlabs.KubernetesConfig, api *KubernetesConfig) {
@@ -632,6 +641,7 @@ func convertVLabsKubernetesConfig(vlabs *vlabs.KubernetesConfig, api *Kubernetes
 	api.CustomHyperkubeImage = vlabs.CustomHyperkubeImage
 	api.UseInstanceMetadata = vlabs.UseInstanceMetadata
 	api.EnableRbac = vlabs.EnableRbac
+	api.EnableAggregatedAPIs = vlabs.EnableAggregatedAPIs
 	api.GCHighThreshold = vlabs.GCHighThreshold
 	api.GCLowThreshold = vlabs.GCLowThreshold
 }
@@ -711,6 +721,8 @@ func convertVLabsMasterProfile(vlabs *vlabs.MasterProfile, api *MasterProfile) {
 		convertVLabsExtension(&extension, apiExtension)
 		api.Extensions = append(api.Extensions, *apiExtension)
 	}
+
+	api.Distro = Distro(vlabs.Distro)
 }
 
 func convertV20160930AgentPoolProfile(v20160930 *v20160930.AgentPoolProfile, availabilityProfile string, api *AgentPoolProfile) {
@@ -807,6 +819,7 @@ func convertVLabsAgentPoolProfile(vlabs *vlabs.AgentPoolProfile, api *AgentPoolP
 		convertVLabsExtension(&extension, apiExtension)
 		api.Extensions = append(api.Extensions, *apiExtension)
 	}
+	api.Distro = Distro(vlabs.Distro)
 }
 
 func convertVLabsKeyVaultSecrets(vlabs *vlabs.KeyVaultSecrets, api *KeyVaultSecrets) {

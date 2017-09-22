@@ -34,7 +34,6 @@ type DockerSpecConfig struct {
 
 //DCOSSpecConfig is the configurations of DCOS
 type DCOSSpecConfig struct {
-	DCOS173BootstrapDownloadURL     string
 	DCOS188BootstrapDownloadURL     string
 	DCOS190BootstrapDownloadURL     string
 	DCOS110BootstrapDownloadURL     string
@@ -72,7 +71,7 @@ type AzureEnvironmentSpecConfig struct {
 	KubernetesSpecConfig KubernetesSpecConfig
 	DCOSSpecConfig       DCOSSpecConfig
 	EndpointConfig       AzureEndpointConfig
-	OSImageConfig        AzureOSImageConfig
+	OSImageConfig        map[api.Distro]AzureOSImageConfig
 }
 
 // Context represents the object that is passed to the package

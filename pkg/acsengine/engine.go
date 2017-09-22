@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"regexp"
@@ -25,15 +26,15 @@ import (
 )
 
 const (
-	kubernetesMasterCustomDataYaml      = "kubernetesmastercustomdata.yml"
-	kubernetesMasterCustomScript        = "kubernetesmastercustomscript.sh"
-	kubernetesAgentCustomDataYaml       = "kubernetesagentcustomdata.yml"
-	kubeConfigJSON                      = "kubeconfig.json"
-	kubernetesWindowsAgentCustomDataPS1 = "kuberneteswindowssetup.ps1"
+	kubernetesMasterCustomDataYaml           = "kubernetesmastercustomdata.yml"
+	kubernetesMasterCustomScript             = "kubernetesmastercustomscript.sh"
+	kubernetesMasterGenerateProxyCertsScript = "kubernetesmastergenerateproxycertscript.sh"
+	kubernetesAgentCustomDataYaml            = "kubernetesagentcustomdata.yml"
+	kubeConfigJSON                           = "kubeconfig.json"
+	kubernetesWindowsAgentCustomDataPS1      = "kuberneteswindowssetup.ps1"
 )
 
 const (
-	dcosCustomData173    = "dcoscustomdata173.t"
 	dcosCustomData188    = "dcoscustomdata188.t"
 	dcosCustomData190    = "dcoscustomdata190.t"
 	dcosCustomData110    = "dcoscustomdata110.t"
@@ -101,13 +102,15 @@ var kubernetesManifestYamls = map[string]string{
 }
 
 var kubernetesAritfacts = map[string]string{
-	"MASTER_PROVISION_B64_GZIP_STR": kubernetesMasterCustomScript,
-	"KUBELET_SERVICE_B64_GZIP_STR":  kubernetesKubeletService,
+	"MASTER_PROVISION_B64_GZIP_STR":            kubernetesMasterCustomScript,
+	"MASTER_GENERATE_PROXY_CERTS_B64_GZIP_STR": kubernetesMasterGenerateProxyCertsScript,
+	"KUBELET_SERVICE_B64_GZIP_STR":             kubernetesKubeletService,
 }
 
 var kubernetesAritfacts15 = map[string]string{
-	"MASTER_PROVISION_B64_GZIP_STR": kubernetesMasterCustomScript,
-	"KUBELET_SERVICE_B64_GZIP_STR":  "kuberneteskubelet1.5.service",
+	"MASTER_PROVISION_B64_GZIP_STR":            kubernetesMasterCustomScript,
+	"MASTER_GENERATE_PROXY_CERTS_B64_GZIP_STR": kubernetesMasterGenerateProxyCertsScript,
+	"KUBELET_SERVICE_B64_GZIP_STR":             "kuberneteskubelet1.5.service",
 }
 
 var kubernetesAddonYamls = map[string]string{
@@ -272,6 +275,10 @@ func (t *TemplateGenerator) GenerateTemplate(containerService *api.ContainerServ
 		}
 	}()
 
+	if !ValidateDistro(containerService) {
+		return templateRaw, parametersRaw, certsGenerated, fmt.Errorf("Invalid distro")
+	}
+
 	var b bytes.Buffer
 	if err = templ.ExecuteTemplate(&b, baseFile, properties); err != nil {
 		return templateRaw, parametersRaw, certsGenerated, err
@@ -403,6 +410,23 @@ func GetCloudSpecConfig(location string) AzureEnvironmentSpecConfig {
 	}
 }
 
+// ValidateDistro checks if the requested orchestrator type is supported on the requested Linux distro.
+func ValidateDistro(cs *api.ContainerService) bool {
+	// Check Master distro
+	if cs.Properties.MasterProfile != nil && cs.Properties.MasterProfile.Distro == api.RHEL && cs.Properties.OrchestratorProfile.OrchestratorType != api.SwarmMode {
+		log.Fatalf("Orchestrator type %s not suported on RHEL Master", cs.Properties.OrchestratorProfile.OrchestratorType)
+		return false
+	}
+	// Check Agent distros
+	for _, agentProfile := range cs.Properties.AgentPoolProfiles {
+		if agentProfile.Distro == api.RHEL && cs.Properties.OrchestratorProfile.OrchestratorType != api.SwarmMode {
+			log.Fatalf("Orchestrator type %s not suported on RHEL Agent", cs.Properties.OrchestratorProfile.OrchestratorType)
+			return false
+		}
+	}
+	return true
+}
+
 // GetCloudTargetEnv determines and returns whether the region is a sovereign cloud which
 // have their own data compliance regulations (China/Germany/USGov) or standard
 //  Azure public cloud
@@ -428,10 +452,10 @@ func getParameters(cs *api.ContainerService, isClassicMode bool) (paramsMap, err
 
 	// Master Parameters
 	addValue(parametersMap, "location", location)
-	addValue(parametersMap, "osImageOffer", cloudSpecConfig.OSImageConfig.ImageOffer)
-	addValue(parametersMap, "osImageSKU", cloudSpecConfig.OSImageConfig.ImageSku)
-	addValue(parametersMap, "osImagePublisher", cloudSpecConfig.OSImageConfig.ImagePublisher)
-	addValue(parametersMap, "osImageVersion", cloudSpecConfig.OSImageConfig.ImageVersion)
+	addValue(parametersMap, "osImageOffer", cloudSpecConfig.OSImageConfig[api.Ubuntu].ImageOffer)
+	addValue(parametersMap, "osImageSKU", cloudSpecConfig.OSImageConfig[api.Ubuntu].ImageSku)
+	addValue(parametersMap, "osImagePublisher", cloudSpecConfig.OSImageConfig[api.Ubuntu].ImagePublisher)
+	addValue(parametersMap, "osImageVersion", cloudSpecConfig.OSImageConfig[api.Ubuntu].ImageVersion)
 	addValue(parametersMap, "fqdnEndpointSuffix", cloudSpecConfig.EndpointConfig.ResourceManagerVMDNSSuffix)
 	addValue(parametersMap, "targetEnvironment", GetCloudTargetEnv(location))
 	addValue(parametersMap, "linuxAdminUsername", properties.LinuxProfile.AdminUsername)
@@ -566,11 +590,10 @@ func getParameters(cs *api.ContainerService, isClassicMode bool) (paramsMap, err
 
 	if strings.HasPrefix(properties.OrchestratorProfile.OrchestratorType, api.DCOS) {
 		dcosBootstrapURL := cloudSpecConfig.DCOSSpecConfig.DCOS188BootstrapDownloadURL
+		dcosWindowsBootstrapURL := cloudSpecConfig.DCOSSpecConfig.DCOSWindowsBootstrapDownloadURL
 		switch properties.OrchestratorProfile.OrchestratorType {
 		case api.DCOS:
 			switch properties.OrchestratorProfile.OrchestratorRelease {
-			case api.DCOSRelease1Dot7:
-				dcosBootstrapURL = cloudSpecConfig.DCOSSpecConfig.DCOS173BootstrapDownloadURL
 			case api.DCOSRelease1Dot8:
 				dcosBootstrapURL = cloudSpecConfig.DCOSSpecConfig.DCOS188BootstrapDownloadURL
 			case api.DCOSRelease1Dot9:
@@ -579,9 +602,14 @@ func getParameters(cs *api.ContainerService, isClassicMode bool) (paramsMap, err
 				dcosBootstrapURL = cloudSpecConfig.DCOSSpecConfig.DCOS110BootstrapDownloadURL
 			}
 		}
-		addValue(parametersMap, "dcosBootstrapURL", dcosBootstrapURL)
 
-		dcosWindowsBootstrapURL := cloudSpecConfig.DCOSSpecConfig.DCOSWindowsBootstrapDownloadURL
+		if properties.OrchestratorProfile.DcosConfig != nil {
+			if properties.OrchestratorProfile.DcosConfig.DcosWindowsBootstrapURL != "" {
+				dcosWindowsBootstrapURL = properties.OrchestratorProfile.DcosConfig.DcosWindowsBootstrapURL
+			}
+		}
+
+		addValue(parametersMap, "dcosBootstrapURL", dcosBootstrapURL)
 		addValue(parametersMap, "dcosWindowsBootstrapURL", dcosWindowsBootstrapURL)
 	}
 
@@ -799,6 +827,9 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			str := getBase64CustomScript(dcosWindowsProvision)
 			return fmt.Sprintf("\"customData\": \"%s\"", str)
 		},
+		"GetDCOSWindowsAgentCustomNodeAttributes": func(profile *api.AgentPoolProfile) string {
+			return getDCOSWindowsAgentCustomAttributes(profile)
+		},
 		"GetMasterAllowedSizes": func() string {
 			if t.ClassicMode {
 				return GetClassicAllowedSizes()
@@ -914,6 +945,9 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		"GetKubernetesB64Provision": func() string {
 			return getBase64CustomScript(kubernetesMasterCustomScript)
 		},
+		"GetKubernetesB64GenerateProxyCerts": func() string {
+			return getBase64CustomScript(kubernetesMasterGenerateProxyCertsScript)
+		},
 		"GetKubernetesMasterPreprovisionYaml": func() string {
 			str := ""
 			if cs.Properties.MasterProfile.PreprovisionExtension != nil {
@@ -1021,6 +1055,44 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		},
 		"HasWindowsSecrets": func() bool {
 			return cs.Properties.WindowsProfile.HasSecrets()
+		},
+		"GetConfigurationScriptRootURL": func() string {
+			if cs.Properties.LinuxProfile.ScriptRootURL == "" {
+				return DefaultConfigurationScriptRootURL
+			}
+			return cs.Properties.LinuxProfile.ScriptRootURL
+		},
+		"GetMasterOSImageOffer": func() string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageOffer)
+		},
+		"GetMasterOSImagePublisher": func() string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImagePublisher)
+		},
+		"GetMasterOSImageSKU": func() string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageSku)
+		},
+		"GetMasterOSImageVersion": func() string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageVersion)
+		},
+		"GetAgentOSImageOffer": func(profile *api.AgentPoolProfile) string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageOffer)
+		},
+		"GetAgentOSImagePublisher": func(profile *api.AgentPoolProfile) string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImagePublisher)
+		},
+		"GetAgentOSImageSKU": func(profile *api.AgentPoolProfile) string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageSku)
+		},
+		"GetAgentOSImageVersion": func(profile *api.AgentPoolProfile) string {
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageVersion)
 		},
 		"PopulateClassicModeDefaultValue": func(attr string) string {
 			var val string
@@ -1197,15 +1269,6 @@ func getPackageGUID(orchestratorType string, orchestratorRelease string, masterC
 			case 5:
 				return "d9b61156dfcc9383e014851529738aa550ef57d9"
 			}
-		case api.DCOSRelease1Dot7:
-			switch masterCount {
-			case 1:
-				return "6b604c1331c2b8b52bb23d1ea8a8d17e0f2b7428"
-			case 3:
-				return "6af5097e7956962a3d4318d28fbf280a47305485"
-			case 5:
-				return "376e07e0dbad2af3da2c03bc92bb07e84b3dafd5"
-			}
 		}
 	}
 	return ""
@@ -1234,6 +1297,9 @@ func getDCOSAgentCustomNodeLabels(profile *api.AgentPoolProfile) string {
 	var buf bytes.Buffer
 	var attrstring string
 	buf.WriteString("")
+	// always write MESOS_ATTRIBUTES because
+	// the provision script will add FD/UD attributes
+	// at node provisioning time
 	if len(profile.OSType) > 0 {
 		attrstring = fmt.Sprintf("MESOS_ATTRIBUTES=\"os:%s", profile.OSType)
 	} else {
@@ -1251,6 +1317,27 @@ func getDCOSAgentCustomNodeLabels(profile *api.AgentPoolProfile) string {
 		}
 	}
 	buf.WriteString("\"")
+	return buf.String()
+}
+
+func getDCOSWindowsAgentCustomAttributes(profile *api.AgentPoolProfile) string {
+	var buf bytes.Buffer
+	var attrstring string
+	buf.WriteString("")
+	if len(profile.OSType) > 0 {
+		attrstring = fmt.Sprintf("os:%s", profile.OSType)
+	} else {
+		attrstring = fmt.Sprintf("os:windows")
+	}
+	if len(profile.Ports) > 0 {
+		attrstring += ";public_ip:yes"
+	}
+	buf.WriteString(attrstring)
+	if len(profile.CustomNodeLabels) > 0 {
+		for k, v := range profile.CustomNodeLabels {
+			buf.WriteString(fmt.Sprintf(";%s:%s", k, v))
+		}
+	}
 	return buf.String()
 }
 
@@ -1552,8 +1639,6 @@ func getSingleLineDCOSCustomData(orchestratorType, orchestratorRelease string,
 	switch orchestratorType {
 	case api.DCOS:
 		switch orchestratorRelease {
-		case api.DCOSRelease1Dot7:
-			yamlFilename = dcosCustomData173
 		case api.DCOSRelease1Dot8:
 			yamlFilename = dcosCustomData188
 		case api.DCOSRelease1Dot9:
@@ -1762,7 +1847,12 @@ func internalGetPoolLinkedTemplateText(extTargetVMNamePrefix, orchestratorType, 
 	dta = strings.Replace(dta, "EXTENSION_PARAMETERS_REPLACE", extensionsParameterReference, -1)
 	dta = strings.Replace(dta, "EXTENSION_URL_REPLACE", extensionProfile.RootURL, -1)
 	dta = strings.Replace(dta, "EXTENSION_TARGET_VM_NAME_PREFIX", extTargetVMNamePrefix, -1)
-	dta = strings.Replace(dta, "EXTENSION_LOOP_COUNT", loopCount, -1)
+	if _, err := strconv.Atoi(loopCount); err == nil {
+		dta = strings.Replace(dta, "\"EXTENSION_LOOP_COUNT\"", loopCount, -1)
+	} else {
+		dta = strings.Replace(dta, "EXTENSION_LOOP_COUNT", loopCount, -1)
+	}
+
 	dta = strings.Replace(dta, "EXTENSION_LOOP_OFFSET", loopOffset, -1)
 	return dta, nil
 }

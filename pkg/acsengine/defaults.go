@@ -24,11 +24,10 @@ var (
 
 	//DefaultDCOSSpecConfig is the default DC/OS binary download URL.
 	DefaultDCOSSpecConfig = DCOSSpecConfig{
-		DCOS173BootstrapDownloadURL:     fmt.Sprintf(MsecndDCOSBootstrapDownloadURL, "testing", "df308b6fc3bd91e1277baa5a3db928ae70964722"),
 		DCOS188BootstrapDownloadURL:     fmt.Sprintf(AzureEdgeDCOSBootstrapDownloadURL, "stable", "5df43052907c021eeb5de145419a3da1898c58a5"),
 		DCOS190BootstrapDownloadURL:     fmt.Sprintf(AzureEdgeDCOSBootstrapDownloadURL, "stable", "58fd0833ce81b6244fc73bf65b5deb43217b0bd7"),
 		DCOS110BootstrapDownloadURL:     fmt.Sprintf(AzureEdgeDCOSBootstrapDownloadURL, "stable", "e38ab2aa282077c8eb7bf103c6fff7b0f08db1a4"),
-		DCOSWindowsBootstrapDownloadURL: "https://dcosdevstorage.blob.core.windows.net/dcos-windows",
+		DCOSWindowsBootstrapDownloadURL: "http://dcos-win.westus.cloudapp.azure.com/dcos-windows/stable/",
 	}
 
 	//DefaultDockerSpecConfig is the default Docker engine repo.
@@ -37,12 +36,20 @@ var (
 		DockerComposeDownloadURL: "https://github.com/docker/compose/releases/download",
 	}
 
-	//DefaultOSImageConfig is the default Linux distribution.
-	DefaultOSImageConfig = AzureOSImageConfig{
+	//DefaultUbuntuImageConfig is the default Linux distribution.
+	DefaultUbuntuImageConfig = AzureOSImageConfig{
 		ImageOffer:     "UbuntuServer",
 		ImageSku:       "16.04-LTS",
 		ImagePublisher: "Canonical",
 		ImageVersion:   "16.04.201706191",
+	}
+
+	//DefaultRHELOSImageConfig is the RHEL Linux distribution.
+	DefaultRHELOSImageConfig = AzureOSImageConfig{
+		ImageOffer:     "RHEL",
+		ImageSku:       "7.3",
+		ImagePublisher: "RedHat",
+		ImageVersion:   "latest",
 	}
 
 	//AzureCloudSpec is the default configurations for global azure.
@@ -57,7 +64,10 @@ var (
 			ResourceManagerVMDNSSuffix: "cloudapp.azure.com",
 		},
 
-		OSImageConfig: DefaultOSImageConfig,
+		OSImageConfig: map[api.Distro]AzureOSImageConfig{
+			api.Ubuntu: DefaultUbuntuImageConfig,
+			api.RHEL:   DefaultRHELOSImageConfig,
+		},
 	}
 
 	//AzureGermanCloudSpec is the German cloud config.
@@ -68,11 +78,14 @@ var (
 		EndpointConfig: AzureEndpointConfig{
 			ResourceManagerVMDNSSuffix: "cloudapp.microsoftazure.de",
 		},
-		OSImageConfig: AzureOSImageConfig{
-			ImageOffer:     "UbuntuServer",
-			ImageSku:       "16.04-LTS",
-			ImagePublisher: "Canonical",
-			ImageVersion:   "16.04.201701130",
+		OSImageConfig: map[api.Distro]AzureOSImageConfig{
+			api.Ubuntu: {
+				ImageOffer:     "UbuntuServer",
+				ImageSku:       "16.04-LTS",
+				ImagePublisher: "Canonical",
+				ImageVersion:   "16.04.201701130",
+			},
+			api.RHEL: DefaultRHELOSImageConfig,
 		},
 	}
 
@@ -84,7 +97,10 @@ var (
 		EndpointConfig: AzureEndpointConfig{
 			ResourceManagerVMDNSSuffix: "cloudapp.windowsazure.us",
 		},
-		OSImageConfig: DefaultOSImageConfig,
+		OSImageConfig: map[api.Distro]AzureOSImageConfig{
+			api.Ubuntu: DefaultUbuntuImageConfig,
+			api.RHEL:   DefaultRHELOSImageConfig,
+		},
 	}
 
 	//AzureChinaCloudSpec is the configurations for Azure China (Mooncake)
@@ -104,7 +120,6 @@ var (
 			CalicoConfigDownloadURL:          "https://acsengine.blob.core.chinacloudapi.cn/cni",
 		},
 		DCOSSpecConfig: DCOSSpecConfig{
-			DCOS173BootstrapDownloadURL:     fmt.Sprintf(AzureChinaCloudDCOSBootstrapDownloadURL, "df308b6fc3bd91e1277baa5a3db928ae70964722"),
 			DCOS188BootstrapDownloadURL:     fmt.Sprintf(AzureChinaCloudDCOSBootstrapDownloadURL, "5df43052907c021eeb5de145419a3da1898c58a5"),
 			DCOSWindowsBootstrapDownloadURL: "https://dcosdevstorage.blob.core.windows.net/dcos-windows",
 			DCOS190BootstrapDownloadURL:     fmt.Sprintf(AzureChinaCloudDCOSBootstrapDownloadURL, "58fd0833ce81b6244fc73bf65b5deb43217b0bd7"),
@@ -113,7 +128,10 @@ var (
 		EndpointConfig: AzureEndpointConfig{
 			ResourceManagerVMDNSSuffix: "cloudapp.chinacloudapi.cn",
 		},
-		OSImageConfig: DefaultOSImageConfig,
+		OSImageConfig: map[api.Distro]AzureOSImageConfig{
+			api.Ubuntu: DefaultUbuntuImageConfig,
+			api.RHEL:   DefaultRHELOSImageConfig,
+		},
 	}
 )
 
@@ -228,6 +246,13 @@ func setOrchestratorDefaults(cs *api.ContainerService) {
 				a.OrchestratorProfile.KubernetesConfig.CloudProviderRateLimitBucket = DefaultKubernetesCloudProviderRateLimitBucket
 			}
 		}
+	} else if a.OrchestratorProfile.OrchestratorType == api.DCOS {
+		if a.OrchestratorProfile.DcosConfig == nil {
+			a.OrchestratorProfile.DcosConfig = &api.DcosConfig{}
+		}
+		if a.OrchestratorProfile.DcosConfig.DcosWindowsBootstrapURL == "" {
+			a.OrchestratorProfile.DcosConfig.DcosWindowsBootstrapURL = DefaultDCOSSpecConfig.DCOSWindowsBootstrapDownloadURL
+		}
 	}
 }
 
@@ -255,6 +280,12 @@ func setMasterNetworkDefaults(a *api.Properties) {
 	if a.MasterProfile == nil {
 		return
 	}
+
+	// Set default Distro to Ubuntu
+	if a.MasterProfile.Distro == "" {
+		a.MasterProfile.Distro = api.Ubuntu
+	}
+
 	if !a.MasterProfile.IsCustomVNET() {
 		if a.OrchestratorProfile.OrchestratorType == api.Kubernetes {
 			if a.OrchestratorProfile.IsVNETIntegrated() {
@@ -312,6 +343,10 @@ func setAgentNetworkDefaults(a *api.Properties) {
 		// set default OSType to Linux
 		if profile.OSType == "" {
 			profile.OSType = api.Linux
+		}
+		// set default Distro to Ubuntu
+		if profile.Distro == "" {
+			profile.Distro = api.Ubuntu
 		}
 
 		// Set the default number of IP addresses allocated for agents.

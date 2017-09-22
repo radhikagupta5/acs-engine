@@ -98,7 +98,9 @@ type LinuxProfile struct {
 	SSH           struct {
 		PublicKeys []PublicKey `json:"publicKeys"`
 	} `json:"ssh"`
-	Secrets []KeyVaultSecrets `json:"secrets,omitempty"`
+	Secrets       []KeyVaultSecrets `json:"secrets,omitempty"`
+	Distro        Distro            `json:"distro,omitempty"`
+	ScriptRootURL string            `json:"scriptroot,omitempty"`
 }
 
 // PublicKey represents an SSH key for LinuxProfile
@@ -141,6 +143,7 @@ type OrchestratorProfile struct {
 	OrchestratorRelease string            `json:"orchestratorRelease"`
 	OrchestratorVersion string            `json:"orchestratorVersion"`
 	KubernetesConfig    *KubernetesConfig `json:"kubernetesConfig,omitempty"`
+	DcosConfig          *DcosConfig       `json:"dcosConfig,omitempty"`
 }
 
 // KubernetesConfig contains the Kubernetes config structure, containing
@@ -169,8 +172,14 @@ type KubernetesConfig struct {
 	CustomHyperkubeImage             string  `json:"customHyperkubeImage,omitempty"`
 	UseInstanceMetadata              bool    `json:"useInstanceMetadata,omitempty"`
 	EnableRbac                       bool    `json:"enableRbac,omitempty"`
+	EnableAggregatedAPIs             bool    `json:"enableAggregatedAPIs,omitempty"`
 	GCHighThreshold                  int     `json:"gchighthreshold,omitempty"`
 	GCLowThreshold                   int     `json:"gclowthreshold,omitempty"`
+}
+
+// DcosConfig Configuration for DC/OS
+type DcosConfig struct {
+	DcosWindowsBootstrapURL string `json:"dcosWindowsBootstrapURL,omitempty"`
 }
 
 // MasterProfile represents the definition of the master cluster
@@ -189,6 +198,7 @@ type MasterProfile struct {
 	OAuthEnabled             bool        `json:"oauthEnabled"`
 	PreprovisionExtension    *Extension  `json:"preProvisionExtension"`
 	Extensions               []Extension `json:"extensions"`
+	Distro                   Distro      `json:"distro,omitempty"`
 
 	// Master LB public endpoint/FQDN with port
 	// The format will be FQDN:2376
@@ -230,6 +240,7 @@ type AgentPoolProfile struct {
 	VnetSubnetID        string `json:"vnetSubnetID,omitempty"`
 	Subnet              string `json:"subnet"`
 	IPAddressCount      int    `json:"ipAddressCount,omitempty"`
+	Distro              Distro `json:"distro,omitempty"`
 
 	FQDN                  string            `json:"fqdn,omitempty"`
 	CustomNodeLabels      map[string]string `json:"customNodeLabels,omitempty"`
@@ -294,6 +305,9 @@ type KeyVaultCertificate struct {
 
 // OSType represents OS types of agents
 type OSType string
+
+// Distro represents Linux distro to use for Linux VMs
+type Distro string
 
 // HostedMasterProfile defines properties for a hosted master
 type HostedMasterProfile struct {
@@ -425,6 +439,11 @@ func (m *MasterProfile) IsStorageAccount() bool {
 	return m.StorageProfile == StorageAccount
 }
 
+// IsRHEL returns true if the master specified a RHEL distro
+func (m *MasterProfile) IsRHEL() bool {
+	return m.Distro == RHEL
+}
+
 // IsCustomVNET returns true if the customer brought their own VNET
 func (a *AgentPoolProfile) IsCustomVNET() bool {
 	return len(a.VnetSubnetID) > 0
@@ -438,6 +457,11 @@ func (a *AgentPoolProfile) IsWindows() bool {
 // IsLinux returns true if the agent pool is linux
 func (a *AgentPoolProfile) IsLinux() bool {
 	return a.OSType == Linux
+}
+
+// IsRHEL returns true if the agent pool specified a RHEL distro
+func (a *AgentPoolProfile) IsRHEL() bool {
+	return a.OSType == Linux && a.Distro == RHEL
 }
 
 // IsAvailabilitySets returns true if the customer specified disks

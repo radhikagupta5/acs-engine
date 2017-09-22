@@ -548,6 +548,7 @@ func convertLinuxProfileToVLabs(obj *LinuxProfile, vlabsProfile *vlabs.LinuxProf
 		convertKeyVaultSecretsToVlabs(&s, secret)
 		vlabsProfile.Secrets = append(vlabsProfile.Secrets, *secret)
 	}
+	vlabsProfile.ScriptRootURL = obj.ScriptRootURL
 }
 
 func convertWindowsProfileToV20160930(api *WindowsProfile, v20160930 *v20160930.WindowsProfile) {
@@ -637,6 +638,15 @@ func convertOrchestratorProfileToVLabs(api *OrchestratorProfile, o *vlabs.Orches
 		o.KubernetesConfig = &vlabs.KubernetesConfig{}
 		convertKubernetesConfigToVLabs(api.KubernetesConfig, o.KubernetesConfig)
 	}
+
+	if api.DcosConfig != nil {
+		o.DcosConfig = &vlabs.DcosConfig{}
+		convertDcosConfigToVLabs(api.DcosConfig, o.DcosConfig)
+	}
+}
+
+func convertDcosConfigToVLabs(api *DcosConfig, vlabs *vlabs.DcosConfig) {
+	vlabs.DcosWindowsBootstrapURL = api.DcosWindowsBootstrapURL
 }
 
 func convertKubernetesConfigToVLabs(api *KubernetesConfig, vlabs *vlabs.KubernetesConfig) {
@@ -663,6 +673,7 @@ func convertKubernetesConfigToVLabs(api *KubernetesConfig, vlabs *vlabs.Kubernet
 	vlabs.CustomHyperkubeImage = api.CustomHyperkubeImage
 	vlabs.UseInstanceMetadata = api.UseInstanceMetadata
 	vlabs.EnableRbac = api.EnableRbac
+	vlabs.EnableAggregatedAPIs = api.EnableAggregatedAPIs
 	vlabs.GCHighThreshold = api.GCHighThreshold
 	vlabs.GCLowThreshold = api.GCLowThreshold
 }
@@ -722,6 +733,7 @@ func convertMasterProfileToVLabs(api *MasterProfile, vlabsProfile *vlabs.MasterP
 		convertExtensionToVLabs(&extension, vlabsExtension)
 		vlabsProfile.Extensions = append(vlabsProfile.Extensions, *vlabsExtension)
 	}
+	vlabsProfile.Distro = vlabs.Distro(api.Distro)
 }
 
 func convertKeyVaultSecretsToVlabs(api *KeyVaultSecrets, vlabsSecrets *vlabs.KeyVaultSecrets) {
@@ -813,6 +825,7 @@ func convertAgentPoolProfileToVLabs(api *AgentPoolProfile, p *vlabs.AgentPoolPro
 		convertExtensionToVLabs(&extension, vlabsExtension)
 		p.Extensions = append(p.Extensions, *vlabsExtension)
 	}
+	p.Distro = vlabs.Distro(api.Distro)
 }
 
 func convertDiagnosticsProfileToV20160930(api *DiagnosticsProfile, dp *v20160930.DiagnosticsProfile) {

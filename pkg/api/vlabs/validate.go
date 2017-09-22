@@ -31,7 +31,6 @@ func (o *OrchestratorProfile) Validate() error {
 	switch o.OrchestratorType {
 	case DCOS:
 		switch o.OrchestratorRelease {
-		case common.DCOSRelease1Dot7:
 		case common.DCOSRelease1Dot8:
 		case common.DCOSRelease1Dot9:
 		case common.DCOSRelease1Dot10:
@@ -58,6 +57,16 @@ func (o *OrchestratorProfile) Validate() error {
 			if err != nil {
 				return err
 			}
+			if o.KubernetesConfig.EnableAggregatedAPIs {
+				if o.OrchestratorRelease != common.KubernetesRelease1Dot7 {
+					return fmt.Errorf("enableAggregatedAPIs is only available in Kubernetes version %s; unable to validate for Kubernetes version %s",
+						common.KubernetesRelease1Dot7, o.OrchestratorRelease)
+				}
+
+				if !o.KubernetesConfig.EnableRbac {
+					return fmt.Errorf("enableAggregatedAPIs requires the enableRbac feature as a prerequisite")
+				}
+			}
 		}
 
 	default:
@@ -68,6 +77,9 @@ func (o *OrchestratorProfile) Validate() error {
 		return fmt.Errorf("KubernetesConfig can be specified only when OrchestratorType is Kubernetes")
 	}
 
+	if o.OrchestratorType != DCOS && o.DcosConfig != nil && (*o.DcosConfig != DcosConfig{}) {
+		return fmt.Errorf("DcosConfig can be specified only when OrchestratorType is DCOS")
+	}
 	return nil
 }
 
