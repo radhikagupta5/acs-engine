@@ -44,12 +44,13 @@ type DCOSSpecConfig struct {
 type KubernetesSpecConfig struct {
 	KubernetesImageBase              string
 	TillerImageBase                  string
+	ACIConnectorImageBase            string
+	EtcdDownloadURLBase              string
 	KubeBinariesSASURLBase           string
 	WindowsTelemetryGUID             string
 	CNIPluginsDownloadURL            string
 	VnetCNILinuxPluginsDownloadURL   string
 	VnetCNIWindowsPluginsDownloadURL string
-	CalicoConfigDownloadURL          string
 }
 
 //AzureEndpointConfig describes an Azure endpoint

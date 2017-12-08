@@ -28,9 +28,9 @@
       "cluster_definition": "disks-managed/kubernetes-vmas.json",
       "category": "managed-disk"
     },
-    {
-      "cluster_definition": "disks-managed/swarm-preAttachedDisks-vmss.json",
-      "category": "managed-disk"
+    { 
+      "cluster_definition": "disks-managed/swarm-preAttachedDisks-vmss.json", 
+      "category": "managed-disk" 
     },
     {
       "cluster_definition": "disks-managed/swarmmode-vmas.json",
@@ -58,7 +58,11 @@
       "location": "westus"
     },
     {
-      "cluster_definition": "kubernetes-releases/kubernetes1.5.json",
+      "cluster_definition": "kubernetes-releases/kubernetes1.6.json",
+      "category": "version"
+    },
+    {
+      "cluster_definition": "kubernetes-releases/kubernetes1.8.json",
       "category": "version"
     },
     {
@@ -66,8 +70,20 @@
       "category": "network"
     },
     {
+      "cluster_definition": "networkpolicy/kubernetes-azure.json",
+      "category": "network"
+    },
+    {
       "cluster_definition": "kubernetes-config/kubernetes-clustersubnet.json",
       "category": "network"
+    },
+    {
+      "cluster_definition": "kubernetes-config/kubernetes-no-dashboard.json",
+      "category": "config"
+    },
+    {
+      "cluster_definition": "kubernetes-config/kubernetes-rescheduler.json",
+      "category": "config"
     },
     {
       "cluster_definition": "v20170131/swarmmode.json",
@@ -75,6 +91,10 @@
     },
     {
       "cluster_definition": "vnet/dcosvnet.json",
+      "category": "network"
+    },
+    {
+      "cluster_definition": "vnet/kubernetesvnet-azure-cni.json",
       "category": "network"
     },
     {

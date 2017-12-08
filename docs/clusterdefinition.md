@@ -31,15 +31,107 @@ Here are the valid values for the orchestrator types:
 |Name|Required|Description|
 |---|---|---|
 |kubernetesImageBase|no|This specifies the base URL (everything preceding the actual image filename) of the kubernetes hyperkube image to use for cluster deploymenbt, e.g., `gcrio.azureedge.net/google_containers/`.|
-|networkPolicy|no|Specifies the network policy tool for the cluster. Valid values are:<br>`none` (default), which won't enforce any network policy,<br>`azure` for applying Azure VNET network policy,<br>`calico` for Calico network policy for clusters with Linux agents only.<br>See [network policy examples](../examples/networkpolicy) for more information.|
+|networkPolicy|no|Specifies the network policy tool for the cluster. Valid values are:<br>`"azure"` (default), which provides an Azure native networking experience,<br>`none` for not enforcing any network policy,<br>`calico` for Calico network policy (clusters with Linux agents only).<br>See [network policy examples](../examples/networkpolicy) for more information.|
 |clusterSubnet|no|The IP subnet used for allocating IP addresses for pod network interfaces. The subnet must be in the VNET address space. Default value is 10.244.0.0/16.|
 |dnsServiceIP|no|IP address for kube-dns to listen on. If specified must be in the range of `serviceCidr`.|
 |dockerBridgeSubnet|no|The specific IP and subnet used for allocating IP addresses for the docker bridge network created on the kubernetes master and agents. Default value is 172.17.0.1/16. This value is used to configure the docker daemon using the [--bip flag](https://docs.docker.com/engine/userguide/networking/default_network/custom-docker0).|
 |serviceCidr|no|IP range for Service IPs, Default is "10.0.0.0/16". This range is never routed outside of a node so does not need to lie within clusterSubnet or the VNet.|
+|nonMasqueradeCidr|no|CIDR block to exclude from default source NAT, Default is "10.0.0.0/8".|
 |enableRbac|no|Enable [Kubernetes RBAC](https://kubernetes.io/docs/admin/authorization/rbac/) (boolean - default == false) |
+|enableAggregatedAPIs|no|Enable [Kubernetes Aggregated APIs](https://kubernetes.io/docs/concepts/api-extension/apiserver-aggregation/).This is required by [Service Catalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/README.md). (boolean - default == false) |
 |maxPods|no|The maximum number of pods per node. The minimum valid value, necessary for running kube-system pods, is 5. Default value is 30 when networkPolicy equals azure, 110 otherwise.|
 |gcHighThreshold|no|Sets the --image-gc-high-threshold value on the kublet configuration. Default is 85. [See kubelet Garbage Collection](https://kubernetes.io/docs/concepts/cluster-administration/kubelet-garbage-collection/) |
 |gcLowThreshold|no|Sets the --image-gc-low-threshold value on the kublet configuration. Default is 80. [See kubelet Garbage Collection](https://kubernetes.io/docs/concepts/cluster-administration/kubelet-garbage-collection/) |
+|hardEvictionThreshold|no|Sets the --eviction-hard value on the kublet configuration. Default is `memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%`. [See Hard Eviction Thesholds](https://kubernetes.io/docs/tasks/administer-cluster/out-of-resource/#hard-eviction-thresholds) |
+|useInstanceMetadata|no|Use the Azure cloudprovider instance metadata service for appropriate resource discovery operations. Default is `true`.|
+|addons|no|Configure various Kubernetes addons configuration (currently supported: tiller, kubernetes-dashboard). See `addons` configuration below.|
+
+`addons` describes various addons configuration. It is a child property of `kubernetesConfig`. Below is a list of currently available addons:
+
+|Name of addon|Enabled by default?|How many containers|Description|
+|---|---|---|---|
+|tiller|true|1|Delivers the Helm server-side component: tiller. See https://github.com/kubernetes/helm for more info.|
+|kubernetes-dashboard|true|1|Delivers the kubernetes dashboard component. See https://github.com/kubernetes/dashboard for more info.|
+|rescheduler|false|1|Delivers the kubernetes rescheduler component.|
+
+To give a bit more info on the `addons` property: We've tried to expose the basic bits of data that allow useful configuration of these cluster features. Here are some example usage patterns that will unpack what `addons` provide:
+
+To enable an addon (using "tiller" as an example):
+
+```
+"kubernetesConfig": {
+    "addons": [
+        {
+            "name": "tiller",
+            "enabled" : true
+        }
+    ]
+}
+```
+
+As you can see above, `addons` is an array child property of `kubernetesConfig`. Each addon that you want to add custom configuration to would be represented as an object item in the array. For example, to disable both tiller and dashboard:
+
+```
+"kubernetesConfig": {
+    "addons": [
+        {
+            "name": "tiller",
+            "enabled" : false
+        },
+        {
+            "name": "kubernetes-dashboard",
+            "enabled" : false
+        }
+    ]
+}
+```
+
+More usefully, let's add some custom configuration to both of the above addons:
+
+```
+"kubernetesConfig": {
+    "addons": [
+        {
+            "name": "tiller",
+            "containers": [
+                {
+                  "name": "tiller",
+                  "image": "myDockerHubUser/tiller:v3.0.0-alpha",
+                  "cpuRequests": "1",
+                  "memoryRequests": "1024Mi",
+                  "cpuLimits": "1",
+                  "memoryLimits": "1024Mi"
+                }
+              ]
+        },
+        {
+            "name": "kubernetes-dashboard",
+            "containers": [
+                {
+                  "name": "kubernetes-dashboard",
+                  "cpuRequests": "50m",
+                  "memoryRequests": "512Mi",
+                  "cpuLimits": "50m",
+                  "memoryLimits": "512Mi"
+                }
+              ]
+        }
+    ]
+}
+```
+
+Above you see custom configuration for both tiller and kubernetes-dashboard. Both include specific resource limit values across the following dimensions:
+
+- cpuRequests
+- memoryRequests
+- cpuLimits
+- memoryLimits
+
+See https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ for more on Kubernetes resource limits.
+
+Additionally above, we specified a custom docker image for tiller, let's say we want to build a cluster and test an alpha version of tiller in it.
+
+Finally, the `addons.enabled` boolean property was omitted above; that's by design. If you specify a `containers` configuration, acs-engine assumes you're enabling the addon. The very first example above demonstrates a simple "enable this addon with default configuration" declaration.
 
 ### masterProfile
 `masterProfile` describes the settings for master configuration.
@@ -54,6 +146,7 @@ Here are the valid values for the orchestrator types:
 |vnetSubnetId|no|specifies the Id of an alternate VNET subnet.  The subnet id must specify a valid VNET ID owned by the same subscription. ([bring your own VNET examples](../examples/vnet))|
 |extensions|no|This is an array of extensions.  This indicates that the extension be run on a single master.  The name in the extensions array must exactly match the extension name in the extensionProfiles.|
 |vnetCidr|no| specifies the vnet cidr when using custom Vnets ([bring your own VNET examples](../examples/vnet))|
+|distro|no| Select Master(s) Operating System (Linux). Currently supported values are: `ubuntu` and `coreos`. Defaults to `ubuntu` if undefined. Currently supported OS and orchestrator configurations -- `ubuntu`: DCOS, Docker Swarm, Kubernetes; `coreos`: Kubernetes. [Example of CoreOS Master with CoreOS Agents](../examples/coreos/kubernetes-coreos.json)|
 
 ### agentPoolProfiles
 A cluster can have 0 to 12 agent pool profiles. Agent Pool Profiles are used for creating agents with different capabilities such as VMSizes, VMSS or Availability Set, Public/Private access, [attached storage disks](../examples/disks-storageaccount), [attached managed disks](../examples/disks-managed), or [Windows](../examples/windows).
@@ -70,6 +163,7 @@ A cluster can have 0 to 12 agent pool profiles. Agent Pool Profiles are used for
 |vmsize|yes|Describes a valid [Azure VM Sizes](https://azure.microsoft.com/en-us/documentation/articles/virtual-machines-windows-sizes/).  These are restricted to machines with at least 2 cores|
 |osDiskSizeGB|no|Describes the OS Disk Size in GB|
 |vnetSubnetId|no|specifies the Id of an alternate VNET subnet.  The subnet id must specify a valid VNET ID owned by the same subscription. ([bring your own VNET examples](../examples/vnet))|
+|distro|no| Select Agent Pool(s) Operating System (Linux). Currently supported values are: `ubuntu` and `coreos`. Defaults to `ubuntu` if undefined, unless `osType` is defined as `Windows` (in which case `distro` is unused). Currently supported OS and orchestrator configurations -- `ubuntu`: DCOS, Docker Swarm, Kubernetes; `coreos`: Kubernetes.  [Example of CoreOS Master with Windows and Linux (CoreOS and Ubuntu) Agents](../examples/coreos/kubernetes-coreos-hybrid.json) |
 
 ### linuxProfile
 

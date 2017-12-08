@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"strconv"
 	"time"
+
+	"github.com/Azure/acs-engine/test/e2e/kubernetes/pod"
 )
 
 // List holds a list of deployments returned from kubectl get deploy
@@ -69,9 +71,9 @@ func CreateLinuxDeploy(image, name, namespace string) (*Deployment, error) {
 }
 
 // CreateWindowsDeploy will crete a deployment for a given image with a name in a namespace
-func CreateWindowsDeploy(image, name, namespace string, port int) (*Deployment, error) {
+func CreateWindowsDeploy(image, name, namespace string, port int, hostport int) (*Deployment, error) {
 	overrides := `{ "apiVersion": "extensions/v1beta1", "spec":{"template":{"spec": {"nodeSelector":{"beta.kubernetes.io/os":"windows"}}}}}`
-	out, err := exec.Command("kubectl", "run", name, "-n", namespace, "--image", image, "--port", strconv.Itoa(port), "--overrides", overrides).CombinedOutput()
+	out, err := exec.Command("kubectl", "run", name, "-n", namespace, "--image", image, "--port", strconv.Itoa(port), "--hostport", strconv.Itoa(hostport), "--overrides", overrides).CombinedOutput()
 	if err != nil {
 		log.Printf("Error trying to deploy %s [%s] in namespace %s:%s\n", name, image, namespace, string(out))
 		return nil, err
@@ -118,4 +120,9 @@ func (d *Deployment) Expose(targetPort, exposedPort int) error {
 		return err
 	}
 	return nil
+}
+
+// Pods will return all pods related to a deployment
+func (d *Deployment) Pods() ([]pod.Pod, error) {
+	return pod.GetAllByPrefix(d.Metadata.Name, d.Metadata.Namespace)
 }

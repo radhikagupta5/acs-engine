@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"testing"
 
+	"github.com/Azure/acs-engine/pkg/helpers"
 	"github.com/Azure/acs-engine/pkg/i18n"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
@@ -74,10 +74,9 @@ func TestNormalizeResourcesForK8sMasterUpgrade(t *testing.T) {
 	var template interface{}
 	json.Unmarshal([]byte(templateJSON), &template)
 	templateMap := template.(map[string]interface{})
-	locale, _ := i18n.LoadTranslations()
 	transformer := &Transformer{
 		Translator: &i18n.Translator{
-			Locale: locale,
+			Locale: nil,
 		},
 	}
 	agentsToKeepMap := make(map[string]bool)
@@ -86,8 +85,6 @@ func TestNormalizeResourcesForK8sMasterUpgrade(t *testing.T) {
 	e = transformer.NormalizeResourcesForK8sMasterUpgrade(logger, templateMap, false, agentsToKeepMap)
 	Expect(e).To(BeNil())
 	ValidateTemplate(templateMap, expectedFileContents, "TestNormalizeResourcesForK8sMasterUpgrade")
-	// Clean up
-	os.RemoveAll("./translations")
 }
 
 func TestNormalizeResourcesForK8sAgentUpgrade(t *testing.T) {
@@ -101,10 +98,9 @@ func TestNormalizeResourcesForK8sAgentUpgrade(t *testing.T) {
 	var template interface{}
 	json.Unmarshal([]byte(templateJSON), &template)
 	templateMap := template.(map[string]interface{})
-	locale, _ := i18n.LoadTranslations()
 	transformer := &Transformer{
 		Translator: &i18n.Translator{
-			Locale: locale,
+			Locale: nil,
 		},
 	}
 	agentsToKeepMap := make(map[string]bool)
@@ -113,12 +109,10 @@ func TestNormalizeResourcesForK8sAgentUpgrade(t *testing.T) {
 	e = transformer.NormalizeResourcesForK8sAgentUpgrade(logger, templateMap, false, agentsToKeepMap)
 	Expect(e).To(BeNil())
 	ValidateTemplate(templateMap, expectedFileContents, "TestNormalizeResourcesForK8sAgentUpgrade")
-	// Clean up
-	os.RemoveAll("./translations")
 }
 
 func ValidateTemplate(templateMap map[string]interface{}, expectedFileContents []byte, testFileName string) {
-	output, e := json.Marshal(templateMap)
+	output, e := helpers.JSONMarshal(templateMap, false)
 	Expect(e).To(BeNil())
 	prettyOutput, e := PrettyPrintArmTemplate(string(output))
 	Expect(e).To(BeNil())

@@ -3,11 +3,11 @@ package api
 import (
 	"strings"
 
+	"github.com/Azure/acs-engine/pkg/api/common"
 	"github.com/Azure/acs-engine/pkg/api/v20160330"
 	"github.com/Azure/acs-engine/pkg/api/v20160930"
 	"github.com/Azure/acs-engine/pkg/api/v20170131"
 	"github.com/Azure/acs-engine/pkg/api/v20170701"
-	"github.com/Azure/acs-engine/pkg/api/v20170930"
 	"github.com/Azure/acs-engine/pkg/api/vlabs"
 )
 
@@ -511,46 +511,26 @@ func convertVLabsWindowsProfile(vlabs *vlabs.WindowsProfile, api *WindowsProfile
 func convertV20160930OrchestratorProfile(v20160930 *v20160930.OrchestratorProfile, api *OrchestratorProfile) {
 	api.OrchestratorType = v20160930.OrchestratorType
 	if api.OrchestratorType == Kubernetes {
-		api.OrchestratorRelease = KubernetesRelease1Dot5
-		api.OrchestratorVersion = KubernetesReleaseToVersion[api.OrchestratorRelease]
+		api.OrchestratorVersion = common.KubernetesVersion1Dot5Dot8
 	} else if api.OrchestratorType == DCOS {
-		api.OrchestratorRelease = DCOSRelease1Dot9
-		api.OrchestratorVersion = DCOSReleaseToVersion[api.OrchestratorRelease]
+		api.OrchestratorVersion = DCOSVersion1Dot9Dot0
 	}
 }
 
 func convertV20160330OrchestratorProfile(v20160330 *v20160330.OrchestratorProfile, api *OrchestratorProfile) {
 	api.OrchestratorType = v20160330.OrchestratorType
 	if api.OrchestratorType == DCOS {
-		api.OrchestratorRelease = DCOSRelease1Dot9
-		api.OrchestratorVersion = DCOSReleaseToVersion[api.OrchestratorRelease]
+		api.OrchestratorVersion = DCOSVersion1Dot9Dot0
 	}
 }
 
 func convertV20170131OrchestratorProfile(v20170131 *v20170131.OrchestratorProfile, api *OrchestratorProfile) {
 	api.OrchestratorType = v20170131.OrchestratorType
 	if api.OrchestratorType == Kubernetes {
-		api.OrchestratorRelease = KubernetesDefaultRelease
-		api.OrchestratorVersion = KubernetesReleaseToVersion[api.OrchestratorRelease]
+		api.OrchestratorVersion = common.KubernetesDefaultVersion
 	} else if api.OrchestratorType == DCOS {
-		api.OrchestratorRelease = DCOSRelease1Dot9
-		api.OrchestratorVersion = DCOSReleaseToVersion[api.OrchestratorRelease]
+		api.OrchestratorVersion = DCOSVersion1Dot9Dot0
 	}
-}
-
-func convertV20170930OrchestratorProfile(v *v20170930.OrchestratorProfile, api *OrchestratorProfile) {
-	switch v.OrchestratorType {
-	case v20170930.Kubernetes:
-		api.OrchestratorType = Kubernetes
-	case v20170930.DCOS:
-		api.OrchestratorType = DCOS
-	case v20170930.Swarm:
-		api.OrchestratorType = Swarm
-	case v20170930.DockerCE:
-		api.OrchestratorType = SwarmMode
-	}
-	api.OrchestratorRelease = v.OrchestratorRelease
-	api.OrchestratorVersion = v.OrchestratorVersion
 }
 
 func convertV20170701OrchestratorProfile(v20170701cs *v20170701.OrchestratorProfile, api *OrchestratorProfile) {
@@ -562,21 +542,14 @@ func convertV20170701OrchestratorProfile(v20170701cs *v20170701.OrchestratorProf
 
 	switch api.OrchestratorType {
 	case Kubernetes:
-		switch v20170701cs.OrchestratorRelease {
-		case KubernetesRelease1Dot7, KubernetesRelease1Dot6, KubernetesRelease1Dot5:
-			api.OrchestratorRelease = v20170701cs.OrchestratorRelease
-		default:
-			api.OrchestratorRelease = KubernetesDefaultRelease
-		}
-		api.OrchestratorVersion = KubernetesReleaseToVersion[api.OrchestratorRelease]
+		api.OrchestratorVersion = common.GetSupportedKubernetesVersion(v20170701cs.OrchestratorVersion)
 	case DCOS:
-		switch v20170701cs.OrchestratorRelease {
-		case DCOSRelease1Dot10, DCOSRelease1Dot9, DCOSRelease1Dot8:
-			api.OrchestratorRelease = v20170701cs.OrchestratorRelease
+		switch v20170701cs.OrchestratorVersion {
+		case DCOSVersion1Dot10Dot0, DCOSVersion1Dot9Dot0, DCOSVersion1Dot8Dot8:
+			api.OrchestratorVersion = v20170701cs.OrchestratorVersion
 		default:
-			api.OrchestratorRelease = DCOSDefaultRelease
+			api.OrchestratorVersion = DCOSDefaultVersion
 		}
-		api.OrchestratorVersion = DCOSReleaseToVersion[api.OrchestratorRelease]
 	default:
 		break
 	}
@@ -590,26 +563,19 @@ func convertVLabsOrchestratorProfile(vlabscs *vlabs.OrchestratorProfile, api *Or
 			api.KubernetesConfig = &KubernetesConfig{}
 			convertVLabsKubernetesConfig(vlabscs.KubernetesConfig, api.KubernetesConfig)
 		}
-
-		switch vlabscs.OrchestratorRelease {
-		case KubernetesRelease1Dot7, KubernetesRelease1Dot6, KubernetesRelease1Dot5:
-			api.OrchestratorRelease = vlabscs.OrchestratorRelease
-		default:
-			api.OrchestratorRelease = KubernetesDefaultRelease
-		}
-		api.OrchestratorVersion = KubernetesReleaseToVersion[api.OrchestratorRelease]
+		api.OrchestratorVersion = common.RationalizeReleaseAndVersion(
+			vlabscs.OrchestratorType,
+			vlabscs.OrchestratorRelease,
+			vlabscs.OrchestratorVersion)
 	case DCOS:
 		if vlabscs.DcosConfig != nil {
 			api.DcosConfig = &DcosConfig{}
 			convertVLabsDcosConfig(vlabscs.DcosConfig, api.DcosConfig)
 		}
-		switch vlabscs.OrchestratorRelease {
-		case DCOSRelease1Dot10, DCOSRelease1Dot9, DCOSRelease1Dot8:
-			api.OrchestratorRelease = vlabscs.OrchestratorRelease
-		default:
-			api.OrchestratorRelease = DCOSDefaultRelease
-		}
-		api.OrchestratorVersion = DCOSReleaseToVersion[api.OrchestratorRelease]
+		api.OrchestratorVersion = common.RationalizeReleaseAndVersion(
+			vlabscs.OrchestratorType,
+			vlabscs.OrchestratorRelease,
+			vlabscs.OrchestratorVersion)
 	}
 }
 
@@ -622,10 +588,12 @@ func convertVLabsKubernetesConfig(vlabs *vlabs.KubernetesConfig, api *Kubernetes
 	api.ClusterSubnet = vlabs.ClusterSubnet
 	api.DNSServiceIP = vlabs.DNSServiceIP
 	api.ServiceCIDR = vlabs.ServiceCidr
+	api.NonMasqueradeCidr = vlabs.NonMasqueradeCidr
 	api.NetworkPolicy = vlabs.NetworkPolicy
 	api.MaxPods = vlabs.MaxPods
 	api.DockerBridgeSubnet = vlabs.DockerBridgeSubnet
 	api.NodeStatusUpdateFrequency = vlabs.NodeStatusUpdateFrequency
+	api.HardEvictionThreshold = vlabs.HardEvictionThreshold
 	api.CtrlMgrNodeMonitorGracePeriod = vlabs.CtrlMgrNodeMonitorGracePeriod
 	api.CtrlMgrPodEvictionTimeout = vlabs.CtrlMgrPodEvictionTimeout
 	api.CtrlMgrRouteReconciliationPeriod = vlabs.CtrlMgrRouteReconciliationPeriod
@@ -639,11 +607,43 @@ func convertVLabsKubernetesConfig(vlabs *vlabs.KubernetesConfig, api *Kubernetes
 	api.CloudProviderRateLimitQPS = vlabs.CloudProviderRateLimitQPS
 	api.UseManagedIdentity = vlabs.UseManagedIdentity
 	api.CustomHyperkubeImage = vlabs.CustomHyperkubeImage
+	api.CustomCcmImage = vlabs.CustomCcmImage
+	api.UseCloudControllerManager = vlabs.UseCloudControllerManager
 	api.UseInstanceMetadata = vlabs.UseInstanceMetadata
 	api.EnableRbac = vlabs.EnableRbac
 	api.EnableAggregatedAPIs = vlabs.EnableAggregatedAPIs
 	api.GCHighThreshold = vlabs.GCHighThreshold
 	api.GCLowThreshold = vlabs.GCLowThreshold
+	api.EtcdVersion = vlabs.EtcdVersion
+	api.EtcdDiskSizeGB = vlabs.EtcdDiskSizeGB
+	convertAddonsToAPI(vlabs, api)
+}
+
+func convertAddonsToAPI(v *vlabs.KubernetesConfig, a *KubernetesConfig) {
+	a.Addons = []KubernetesAddon{}
+	for i := range v.Addons {
+		a.Addons = append(a.Addons, KubernetesAddon{
+			Name:    v.Addons[i].Name,
+			Enabled: v.Addons[i].Enabled,
+			Config:  map[string]string{},
+		})
+		for j := range v.Addons[i].Containers {
+			a.Addons[i].Containers = append(a.Addons[i].Containers, KubernetesContainerSpec{
+				Name:           v.Addons[i].Containers[j].Name,
+				Image:          v.Addons[i].Containers[j].Image,
+				CPURequests:    v.Addons[i].Containers[j].CPURequests,
+				MemoryRequests: v.Addons[i].Containers[j].MemoryRequests,
+				CPULimits:      v.Addons[i].Containers[j].CPULimits,
+				MemoryLimits:   v.Addons[i].Containers[j].MemoryLimits,
+			})
+		}
+
+		if v.Addons[i].Config != nil {
+			for key, val := range v.Addons[i].Config {
+				a.Addons[i].Config[key] = val
+			}
+		}
+	}
 }
 
 func convertV20160930MasterProfile(v20160930 *v20160930.MasterProfile, api *MasterProfile) {

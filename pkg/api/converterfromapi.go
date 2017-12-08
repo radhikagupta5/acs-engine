@@ -1,8 +1,11 @@
 package api
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/Masterminds/semver"
 
 	"github.com/Azure/acs-engine/pkg/api/v20160330"
 	"github.com/Azure/acs-engine/pkg/api/v20160930"
@@ -134,13 +137,11 @@ func ConvertOrchestratorVersionProfileToV20170930(api *OrchestratorVersionProfil
 		vProfile.OrchestratorType = v20170930.DockerCE
 	}
 	vProfile.OrchestratorVersion = api.OrchestratorVersion
-	vProfile.OrchestratorRelease = api.OrchestratorRelease
 	vProfile.Default = api.Default
 	if api.Upgrades != nil {
 		vProfile.Upgrades = make([]*v20170930.OrchestratorProfile, len(api.Upgrades))
 		for i, h := range api.Upgrades {
 			vProfile.Upgrades[i] = &v20170930.OrchestratorProfile{
-				OrchestratorRelease: h.OrchestratorRelease,
 				OrchestratorVersion: h.OrchestratorVersion,
 			}
 		}
@@ -162,13 +163,11 @@ func ConvertOrchestratorVersionProfileToVLabs(api *OrchestratorVersionProfile) *
 		vlabsProfile.OrchestratorType = vlabs.SwarmMode
 	}
 	vlabsProfile.OrchestratorVersion = api.OrchestratorVersion
-	vlabsProfile.OrchestratorRelease = api.OrchestratorRelease
 	vlabsProfile.Default = api.Default
 	if api.Upgrades != nil {
 		vlabsProfile.Upgrades = make([]*vlabs.OrchestratorProfile, len(api.Upgrades))
 		for i, h := range api.Upgrades {
 			vlabsProfile.Upgrades[i] = &vlabs.OrchestratorProfile{
-				OrchestratorRelease: h.OrchestratorRelease,
 				OrchestratorVersion: h.OrchestratorVersion,
 			}
 		}
@@ -614,10 +613,6 @@ func convertOrchestratorProfileToV20170701(api *OrchestratorProfile, o *v2017070
 		o.OrchestratorType = api.OrchestratorType
 	}
 
-	if api.OrchestratorRelease != "" {
-		o.OrchestratorRelease = api.OrchestratorRelease
-	}
-
 	if api.OrchestratorVersion != "" {
 		o.OrchestratorVersion = api.OrchestratorVersion
 	}
@@ -625,13 +620,10 @@ func convertOrchestratorProfileToV20170701(api *OrchestratorProfile, o *v2017070
 
 func convertOrchestratorProfileToVLabs(api *OrchestratorProfile, o *vlabs.OrchestratorProfile) {
 	o.OrchestratorType = api.OrchestratorType
-
-	if api.OrchestratorRelease != "" {
-		o.OrchestratorRelease = api.OrchestratorRelease
-	}
-
 	if api.OrchestratorVersion != "" {
 		o.OrchestratorVersion = api.OrchestratorVersion
+		sv, _ := semver.NewVersion(o.OrchestratorVersion)
+		o.OrchestratorRelease = fmt.Sprintf("%d.%d", sv.Major(), sv.Minor())
 	}
 
 	if api.KubernetesConfig != nil {
@@ -654,10 +646,12 @@ func convertKubernetesConfigToVLabs(api *KubernetesConfig, vlabs *vlabs.Kubernet
 	vlabs.ClusterSubnet = api.ClusterSubnet
 	vlabs.DNSServiceIP = api.DNSServiceIP
 	vlabs.ServiceCidr = api.ServiceCIDR
+	vlabs.NonMasqueradeCidr = api.NonMasqueradeCidr
 	vlabs.NetworkPolicy = api.NetworkPolicy
 	vlabs.MaxPods = api.MaxPods
 	vlabs.DockerBridgeSubnet = api.DockerBridgeSubnet
 	vlabs.NodeStatusUpdateFrequency = api.NodeStatusUpdateFrequency
+	vlabs.HardEvictionThreshold = api.HardEvictionThreshold
 	vlabs.CtrlMgrNodeMonitorGracePeriod = api.CtrlMgrNodeMonitorGracePeriod
 	vlabs.CtrlMgrPodEvictionTimeout = api.CtrlMgrPodEvictionTimeout
 	vlabs.CtrlMgrRouteReconciliationPeriod = api.CtrlMgrRouteReconciliationPeriod
@@ -671,11 +665,43 @@ func convertKubernetesConfigToVLabs(api *KubernetesConfig, vlabs *vlabs.Kubernet
 	vlabs.CloudProviderRateLimitQPS = api.CloudProviderRateLimitQPS
 	vlabs.UseManagedIdentity = api.UseManagedIdentity
 	vlabs.CustomHyperkubeImage = api.CustomHyperkubeImage
+	vlabs.CustomCcmImage = api.CustomCcmImage
+	vlabs.UseCloudControllerManager = api.UseCloudControllerManager
 	vlabs.UseInstanceMetadata = api.UseInstanceMetadata
 	vlabs.EnableRbac = api.EnableRbac
 	vlabs.EnableAggregatedAPIs = api.EnableAggregatedAPIs
 	vlabs.GCHighThreshold = api.GCHighThreshold
 	vlabs.GCLowThreshold = api.GCLowThreshold
+	vlabs.EtcdVersion = api.EtcdVersion
+	vlabs.EtcdDiskSizeGB = api.EtcdDiskSizeGB
+	convertAddonsToVlabs(api, vlabs)
+}
+
+func convertAddonsToVlabs(a *KubernetesConfig, v *vlabs.KubernetesConfig) {
+	v.Addons = []vlabs.KubernetesAddon{}
+	for i := range a.Addons {
+		v.Addons = append(v.Addons, vlabs.KubernetesAddon{
+			Name:    a.Addons[i].Name,
+			Enabled: a.Addons[i].Enabled,
+			Config:  map[string]string{},
+		})
+		for j := range a.Addons[i].Containers {
+			v.Addons[i].Containers = append(v.Addons[i].Containers, vlabs.KubernetesContainerSpec{
+				Name:           a.Addons[i].Containers[j].Name,
+				Image:          a.Addons[i].Containers[j].Image,
+				CPURequests:    a.Addons[i].Containers[j].CPURequests,
+				MemoryRequests: a.Addons[i].Containers[j].MemoryRequests,
+				CPULimits:      a.Addons[i].Containers[j].CPULimits,
+				MemoryLimits:   a.Addons[i].Containers[j].MemoryLimits,
+			})
+		}
+
+		if a.Addons[i].Config != nil {
+			for key, val := range a.Addons[i].Config {
+				v.Addons[i].Config[key] = val
+			}
+		}
+	}
 }
 
 func convertMasterProfileToV20160930(api *MasterProfile, v20160930 *v20160930.MasterProfile) {

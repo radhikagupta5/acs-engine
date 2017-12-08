@@ -102,14 +102,14 @@
       "type": "string"
     }, 
     "osImageVersion": {
-      "defaultValue": "16.04.201706191",
+      "defaultValue": "16.04.201711211",
       "metadata": {
         "description": "OS image version."
       },
       "type": "string"
     },
     "fqdnEndpointSuffix":{
-      "defaultValue": "%s.%s.cloudapp.azure.com",
+      "defaultValue": "cloudapp.azure.com",
       "metadata": {
         "description": "Endpoint of FQDN."
       },
