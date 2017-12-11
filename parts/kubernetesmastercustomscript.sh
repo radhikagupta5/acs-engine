@@ -34,6 +34,7 @@ ensureRunCommandCompleted()
         fi
         sleep 1
     done
+	update-ca-certificates
 }
 
 echo `date`,`hostname`, startscript>>/opt/m 

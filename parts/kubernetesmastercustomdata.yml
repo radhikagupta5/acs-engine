@@ -8,6 +8,37 @@ packages:
  - traceroute
 
 write_files:
+- path: "/etc/kubernetes/azurestackcloud.json"
+  permissions: "0644"
+  owner: "root"
+  content: |
+   {
+      "name": "{{WrapAsVariable "cloudprofileName"}}",
+      "managementPortalURL": "{{WrapAsVariable "cloudprofileManagementPortalURL"}}",
+      "publishSettingsURL": "{{WrapAsVariable "cloudprofilePublishSettingsURL"}}",
+      "serviceManagementEndpoint": "{{WrapAsVariable "cloudprofileServiceManagementEndpoint"}}",
+      "resourceManagerEndpoint": "{{WrapAsVariable "cloudprofileResourceManagerEndpoint"}}",
+      "activeDirectoryEndpoint": "{{WrapAsVariable "cloudprofileActiveDirectoryEndpoint"}}",
+      "galleryEndpoint": "{{WrapAsVariable "cloudprofileGalleryEndpoint"}}",
+      "keyVaultEndpoint": "{{WrapAsVariable "cloudprofileKeyVaultEndpoint"}}",
+      "graphEndpoint": "{{WrapAsVariable "cloudprofileGraphEndpoint"}}",
+      "storageEndpointSuffix": "{{WrapAsVariable "cloudprofileStorageEndpointSuffix"}}",
+      "sQLDatabaseDNSSuffix": "{{WrapAsVariable "cloudprofileSQLDatabaseDNSSuffix"}}",
+      "trafficManagerDNSSuffix": "{{WrapAsVariable "cloudprofileTrafficManagerDNSSuffix"}}",
+      "keyVaultDNSSuffix": "{{WrapAsVariable "cloudprofileKeyVaultDNSSuffix"}}",
+      "serviceBusEndpointSuffix": "{{WrapAsVariable "cloudprofileServiceBusEndpointSuffix"}}",
+      "serviceManagementVMDNSSuffix": "{{WrapAsVariable "cloudprofileServiceManagementVMDNSSuffix"}}",
+      "resourceManagerVMDNSSuffix": "{{WrapAsVariable "cloudprofileResourceManagerVMDNSSuffix"}}",
+      "containerRegistryDNSSuffix": "{{WrapAsVariable "cloudprofileContainerRegistryDNSSuffix"}}"
+    }
+
+- path: "/usr/local/share/ca-certificates/azurestack.crt"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{WrapAsVariable "cloudprofileResourceManagerSelfSignedCertificate"}}
+
 - path: "/etc/systemd/system/docker.service.d/clear_mount_propagation_flags.conf"
   permissions: "0644"
   owner: "root"

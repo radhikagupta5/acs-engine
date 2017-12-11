@@ -56,6 +56,7 @@ type Properties struct {
 	AADProfile              *AADProfile              `json:"aadProfile,omitempty"`
 	CustomProfile           *CustomProfile           `json:"customProfile,omitempty"`
 	HostedMasterProfile     *HostedMasterProfile     `json:"hostedMasterProfile,omitempty"`
+	CloudProfile            *CloudProfile            `json:"cloudProfile,omitempty"`
 }
 
 // ServicePrincipalProfile contains the client and secret used by the cluster for Azure Resource CRUD
@@ -248,6 +249,28 @@ type Extension struct {
 	Template    string `json:"template"`
 }
 
+// Cloud Profile Represents Azure Enviornment
+type CloudProfile struct {
+	Name                                 string `json:"name,omitempty"`
+	ManagementPortalURL                  string `json:"managementPortalURL,omitempty"`
+	PublishSettingsURL                   string `json:"publishSettingsURL,omitempty"`
+	ServiceManagementEndpoint            string `json:"serviceManagementEndpoint,omitempty"`
+	ResourceManagerEndpoint              string `json:"resourceManagerEndpoint,omitempty"`
+	ActiveDirectoryEndpoint              string `json:"activeDirectoryEndpoint,omitempty"`
+	GalleryEndpoint                      string `json:"galleryEndpoint,omitempty"`
+	KeyVaultEndpoint                     string `json:"keyVaultEndpoint,omitempty"`
+	GraphEndpoint                        string `json:"graphEndpoint,omitempty"`
+	StorageEndpointSuffix                string `json:"storageEndpointSuffix,omitempty"`
+	SQLDatabaseDNSSuffix                 string `json:"sqlDatabaseDNSSuffix,omitempty"`
+	TrafficManagerDNSSuffix              string `json:"trafficManagerDNSSuffix,omitempty"`
+	KeyVaultDNSSuffix                    string `json:"keyVaultDNSSuffix,omitempty"`
+	ServiceBusEndpointSuffix             string `json:"serviceBusEndpointSuffix,omitempty"`
+	ServiceManagementVMDNSSuffix         string `json:"serviceManagementVMDNSSuffix,omitempty"`
+	ResourceManagerVMDNSSuffix           string `json:"resourceManagerVMDNSSuffix,omitempty"`
+	ContainerRegistryDNSSuffix           string `json:"containerRegistryDNSSuffix,omitempty"`
+	ResourceManagerSelfSignedCertificate string `json:"resourceManagerSelfSignedCertificate,omitempty"`
+}
+
 // AgentPoolProfile represents an agent pool definition
 type AgentPoolProfile struct {
 	Name                string `json:"name"`
@@ -419,6 +442,14 @@ func (p *Properties) HasWindows() bool {
 		}
 	}
 	return false
+}
+
+// IsAzureStackCloud returns true if the cloudProfile.name is set to AzurestackCloud  
+func (c *CloudProfile) IsAzureStackCloud() bool {  
+	if c.Name == "AzurestackCloud" {  
+		return true  
+	}  
+	return false  
 }
 
 // HasManagedDisks returns true if the cluster contains Managed Disks

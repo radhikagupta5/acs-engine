@@ -1,0 +1,61 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "Kubernetes",
+      "orchestratorRelease": "1.7",
+	  "kubernetesConfig": {
+        "CustomHyperkubeImage": "radhikagupta5/kubernetes:v1.1"
+      }
+    },
+	"cloudProfile": {
+	    "name": "AzurestackCloud",
+        "managementPortalURL": "https://manage.windowsazure.com/",
+        "publishSettingsURL": "https://manage.windowsazure.com/publishsettings/index",
+        "serviceManagementEndpoint": "https://management.azurestackci03.onmicrosoft.com/25eb55e8-c3e5-423d-8c18-1938b3a5bf94",
+        "resourceManagerEndpoint": "https://management.local.azurestack.external",
+        "activeDirectoryEndpoint": "https://login.windows.net/",
+        "galleryEndpoint": "https://portal.local.azurestack.external:30015/",
+        "keyVaultEndpoint": "https://vault.local.azurestack.external",
+        "graphEndpoint": "https://graph.windows.net/",
+        "storageEndpointSuffix": "local.azurestack.external",
+        "sqlDatabaseDNSSuffix": "database.windows.net",
+        "trafficManagerDNSSuffix": "trafficmanager.net",
+        "keyVaultDNSSuffix": "vault.local.azurestack.external",
+        "serviceBusEndpointSuffix": "servicebus.azure.com",
+        "serviceManagementVMDNSSuffix": "cloudapp.net",
+        "resourceManagerVMDNSSuffix": "cloudapp.azurestack.external",
+        "containerRegistryDNSSuffix": "azurecr.io",
+		    "resourceManagerSelfSignedCertificate" : "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tDQpNSUlGWkRDQ0EweWdBd0lCQWdJUVZUckZTalhaeTdWSjJ6NyszalcvSnpBTkJna3Foa2lHOXcwQkFRc0ZBREFuDQpNU1V3SXdZRFZRUUREQnhCZW5WeVpWTjBZV05yVTJWc1psTnBaMjVsWkZKdmIzUkRaWEowTUI0WERURTNNVEV5DQpPVEl4TkRVeE5Wb1hEVEU0TVRFeU9USXlNRFV4TlZvd0p6RWxNQ01HQTFVRUF3d2NRWHAxY21WVGRHRmphMU5sDQpiR1pUYVdkdVpXUlNiMjkwUTJWeWREQ0NBaUl3RFFZSktvWklodmNOQVFFQkJRQURnZ0lQQURDQ0Fnb0NnZ0lCDQpBTFBYYmVyak45dmR4TGdJTXArUWtaTzVQdFR3eHo4NE5zSlArVG9LZ2NPZHhBZlNVTFE1YkhNVitTTW1VOXk3DQpkK0xkZUFOWll6VDE3VXNBMk5TZmJqUmVHcGdEem9sQjBqQjlqN3BFbCs2cEFnQzlEMmpBc1ZUVlpwcnJlT3BYDQpadE04ZmQyQm9nQ2phTG1PdXpEczlpUkxaSnhRTTl2U0pIMytQS0Z5QlhpaEp0dVV1Z3ZSNzdhamtsUFh6Um5FDQpyV1BPTkRacXo2eWJNYkN1eERXTU1BM3RSNGJMUXRmU1JERmIrS05BMFNMMGFLV2IxZDVRdDVtbUxSSVMrSHFPDQpvNVBSSXlaWWNxNW9jOXlXd3p5TVNxaEtvTi9Qby9RM3V1QTZxU1EwY2xaQkhxbVBWZjlqa29udDdzQ1NNR2t3DQpWRDdYRVpMUnJvdEE1ckI5eWF3aUd5Y2JVM1lpN05pS2lsVmNpdm0xZ09OY2I0RVZwVU9qVHE0SExBV3BXUlA4DQp4K1pyWTdQZlBXM1Q3cWxqOFBpWXd1b2lSNWltRGVCZXVuUlRmK2l6QTlNc3lKc0JQSUNGWkVVMkVlUzVETi81DQppRW1PMjFVcnhVRExIMlMwTzFXNTh5cTRxU0JWTkVTMHZObzFyRkg1S2V0WmZtRVQyN1dTYkFMRDllVmhGNG16DQozNUtpR2VJNXAwV1BzNHdma1VLMUpCcDZwYWtnS0FpM2d2SnhUNm5JZXJZeFpSQnNjOFRoTzE1VTNOSG5pUXFlDQpQY2ViV09xOHllU1pYRGxlbTZkWU9HZXk0WWpKSDVKaGREK3A1c2NVTHRXQ3NaVklCKys2ZTJDOUxCbGhnblNqDQpabUJkcVpwYlI4U2s0Ym0wbWU3emxVS3BlTXhucW01TTBaekhvVEgxV0lBVEFnTUJBQUdqZ1lzd2dZZ3dEZ1lEDQpWUjBQQVFIL0JBUURBZ0trTUIwR0ExVWRKUVFXTUJRR0NDc0dBUVVGQndNQ0JnZ3JCZ0VGQlFjREFUQWtCZ05WDQpIUkVFSFRBYmdobHNiMk5oYkM1aGVuVnlaWE4wWVdOckxtVjRkR1Z5Ym1Gc01CSUdBMVVkRXdFQi93UUlNQVlCDQpBZjhDQVFNd0hRWURWUjBPQkJZRUZMcHlwdVFPWVpDcElyMWlWOHRmZ1cxeWtSQzlNQTBHQ1NxR1NJYjNEUUVCDQpDd1VBQTRJQ0FRQUw4b2d6QW1vVmFGdlFTYmhjenlzRktMN0hmeXJmUnN1dk1hY3FCSVYvQ29wS2psNXhvZGRiDQozQUZXSGR0UUVBbmg4NEwyaHRSSzBmQ1JuczQrUTlGSU1yeUFIdWFCODVSL2FwSzJ5MmlFQnFYNC9TNHlGSHZhDQpuN1dzVk5PdFdOQVRjL3FlTUtBRmVSY0gydUJEcGJlSnp6SmE1Z2I1ZllleU5WZk1hVjNXZW9ydERrbTAvKzkrDQpqMzUzZnh0dVpyV0xmMUdheVNkeU1SUk9pWGdOcDhQaUgxWlVjUVV4ZFVrNkQ0VlZhcWNtNW9XRUcxaG12TWpsDQo3ZHAwSyt4b0dpTWI3Mm52SStuaWp5Y1IxckJ1NFd3bHUzNVJqOWZpUk1ReEd5ME55QWRjdnB0MFFnY2Y1TjJEDQpTcXZoa2V6YkdubC9ZbE1Vd3o3cjRhRUNLaDIwRllvVWFpYlFDZ09PbkRRcU1pVzNSeHFseGYrbVBGV0YwSkR1DQp6NkIra2dyK0FkSU9hT0xqczVYYmVvVzBSUXFKQWtnVTVnOTJPMW1MK3ZEbGNSTm42NnBDWTFvSVpxZ29NRys0DQpJcEp5ZXdXTmxkMTJKZ0tFSytKN09OWHNMbWo3MWlKc2pzVUVQMC9xMHZZRG9ZaTFlZmhuRTBMVnJYM01KZ1Y3DQo0cVdEWURkVUVTYTQ5THNTOVRiblV6QWtxUnpQd3VoTDRGZGZQZWoycnVxVWtEZldndko1QWFoYU1KL21xR0R3DQpRNytVUWg3eXlWOGdkc2V5c1docmk5VXdrc2UzZDJhS1cxa1lET2hacGlKTTdQV2MwdU43QUMzYlVXajUzVGdKDQovb3VESlo2VjhTUUNwMHlsd1FYdytVNFQ3YnhMTWhCL0VLbFVjZUdydnhiMDJZeDFxZEF4MWc9PQ0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ0K"
+	},
+    "masterProfile": {
+      "count": 1,
+      "dnsPrefix": "radhikgu-k81d",
+      "vmSize": "Standard_D2_v2",
+	  "StorageProfile" : "StorageAccount"
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "agentpool1",
+        "count": 2,
+        "vmSize": "Standard_D2_v2",
+        "availabilityProfile": "AvailabilitySet",
+		"StorageProfile" : "StorageAccount"
+      }
+    ],
+    "linuxProfile": {
+      "adminUsername": "azureuser",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDvbLKDItnLMl4boe4/7Sg7azBznr1k/MCpjYroJDPxOn9m4RMAtvE7iQV8P/oqGY6DjyS7kS8ShMMRaedZ/X1xcHVOTmSihWk0hdgWfyyhHJHo5cKnnZCJYH0U4REf5ofwQlP+N+7fN2xNkQaw/qjYUH8nNpRp7z9nLk1MxAD35jACGKjth417oEM7kr86qePkdy18m+YEA8713UbUWXnqHduOsXdG+QfeHN4P3G11fHXs6yYpzf/Xmi/U6KN2fv8Q4w/5JrRmLOB++a1UYdhoQYkexuLpv53PGBqJpKrJMmv7v1ZsXV8WR7LFLlkzzbrnzICts3dr3S2FMVAAdproCG5CnwHK0kocxXDBRnicgW0ymyfFGzNtr3hXgvP7AmZWYE013/5P2068lqwU8RGQKnDE1ydIcZ58U3IkAWyswOGYML9NbbZMEV1cdBBBi8Gu6uy/3sd+vnfciTasYNF70z1qWKCawWWOEwit9mKEANh677M/dfzt9yJABRhQmDNKjxI0TumDYoCXMEZ7czHYmhKue1tBAJbgDUN23lr/xS7YT3feoVnGovazDUI+SOdrIsZXPIUlN9xh7ZBW0JvxO+JZly4pMV/gMuf2NKnxFR1jfSXPCBjSGaYjBfweEAvMJ61iH3r64T2Tis2hjg2SdkCjimwYva9dh7cGVkYGmQ== imported-openssh-key"
+          }
+        ]
+      }
+    },
+    "servicePrincipalProfile": {
+      "clientId": "36aa3ff8-737e-49c6-beda-dbf78b81fc97",
+      "secret": "jLpk3tMeZQmZm7O8kEn7sZjVtfzfwO+RAnr8AgVhF0Q="
+    }
+  }
+}
