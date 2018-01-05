@@ -5,7 +5,7 @@
       "orchestratorType": "Kubernetes",
       "orchestratorRelease": "1.7",
 	  "kubernetesConfig": {
-        "CustomHyperkubeImage": "radhikagupta5/kubernetes:v1.1"
+        "CustomHyperkubeImage": "radhikagupta5/kubernetes:v1.5"
       }
     },
 	"cloudProfile": {
