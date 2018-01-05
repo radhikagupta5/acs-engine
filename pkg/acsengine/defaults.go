@@ -279,7 +279,7 @@ func setOrchestratorDefaults(cs *api.ContainerService) {
 
 		// default etcd version
 		if "" == o.KubernetesConfig.EtcdVersion {
-			o.KubernetesConfig.EtcdVersion = "2.5.2"
+			o.KubernetesConfig.EtcdVersion = "2.2.5"
 		}
 
 		if "" == a.OrchestratorProfile.KubernetesConfig.TillerCPURequests {
