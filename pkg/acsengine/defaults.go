@@ -72,7 +72,7 @@ var (
 		DCOSSpecConfig:       DefaultDCOSSpecConfig,
 
 		EndpointConfig: AzureEndpointConfig{
-			ResourceManagerVMDNSSuffix: "cloudapp.azure.com",
+			ResourceManagerVMDNSSuffix: "cloudapp.azurestack.external",
 		},
 
 		OSImageConfig: map[api.Distro]AzureOSImageConfig{
