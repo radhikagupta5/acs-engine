@@ -37,8 +37,9 @@ ensureRunCommandCompleted()
 	update-ca-certificates
 }
 
-echo `date`,`hostname`, startscript>>/opt/m 
-
+echo `date`,`hostname`, startscript>>/opt/m
+sudo dpkg --configure -a
+sudo /var/lib/cloud/instance/scripts/runcmd
 # A delay to start the kubernetes processes is necessary
 # if a reboot is required.  Otherwise, the agents will encounter issue: 
 # https://github.com/kubernetes/kubernetes/issues/41185
@@ -59,6 +60,7 @@ if [[ ! -z "${APISERVER_PRIVATE_KEY}" ]]; then
     echo "${APISERVER_PRIVATE_KEY}" | base64 --decode > "${APISERVER_PRIVATE_KEY_PATH}"
 else
     echo "APISERVER_PRIVATE_KEY is empty, assuming worker node"
+    
 fi
 
 # If CA_PRIVATE_KEY is empty, then we are not on the master
