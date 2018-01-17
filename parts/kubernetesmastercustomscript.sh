@@ -118,6 +118,13 @@ EOF
 
 set -x
 
+function runPreProvisionScript() {
+    echo "starting pre-provisioning script"
+    sudo dpkg --configure -a
+    sudo bash /opt/azure/containers/preprovision.sh
+    echo "ending pre-provisioning script"
+}
+
 # wait for kubectl to report successful cluster health
 function ensureKubectl() {
     if $REBOOTREQUIRED; then
@@ -384,6 +391,13 @@ users:
     # renable logging after secrets
     set -x
 }
+
+# make sure walinuxagent doesn't get updated in the middle of running this script
+apt-mark hold walinuxagent
+
+# make all the pre provisioning steps done before kubernetes deployment
+runPreProvisionScript
+apt-mark unhold walinuxagent
 
 # master and node
 echo `date`,`hostname`, EnsureDockerStart>>/opt/m 
