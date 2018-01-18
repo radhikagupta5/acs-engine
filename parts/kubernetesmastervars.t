@@ -303,5 +303,5 @@
     "cloudprofileServiceManagementVMDNSSuffix": "[parameters('cloudprofileServiceManagementVMDNSSuffix')]",
     "cloudprofileResourceManagerVMDNSSuffix": "[parameters('cloudprofileResourceManagerVMDNSSuffix')]",
     "cloudprofileContainerRegistryDNSSuffix": "[parameters('cloudprofileContainerRegistryDNSSuffix')]",
-    "cloudprofileResourceManagerSelfSignedCertificate": "[parameters('cloudprofileResourceManagerSelfSignedCertificate')]"
+    "cloudprofileResourceManagerRootCertificate": "[parameters('cloudprofileResourceManagerRootCertificate')]"
 {{end}}

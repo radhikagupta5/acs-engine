@@ -516,10 +516,10 @@
       },
       "type": "string"
     },
-    "cloudprofileResourceManagerSelfSignedCertificate": {
-      {{PopulateClassicModeDefaultValue "cloudprofileResourceManagerSelfSignedCertificate"}}
+    "cloudprofileResourceManagerRootCertificate": {
+      {{PopulateClassicModeDefaultValue "cloudprofileResourceManagerRootCertificate"}}
       "metadata": {
-        "description": "cloudprofileResourceManagerSelfSignedCertificate"
+        "description": "cloudprofileResourceManagerRootCertificate"
       },
       "type": "string"
     }

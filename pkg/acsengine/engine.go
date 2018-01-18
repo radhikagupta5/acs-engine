@@ -510,7 +510,7 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 		addValue(parametersMap, "cloudprofileServiceManagementVMDNSSuffix", properties.CloudProfile.ServiceManagementVMDNSSuffix)
 		addValue(parametersMap, "cloudprofileResourceManagerVMDNSSuffix", properties.CloudProfile.ResourceManagerVMDNSSuffix)
 		addValue(parametersMap, "cloudprofileContainerRegistryDNSSuffix", properties.CloudProfile.ContainerRegistryDNSSuffix)
-		addValue(parametersMap, "cloudprofileResourceManagerSelfSignedCertificate", properties.CloudProfile.ResourceManagerSelfSignedCertificate)
+		addValue(parametersMap, "cloudprofileResourceManagerRootCertificate", properties.CloudProfile.ResourceManagerRootCertificate)
 	}
 
 	addValue(parametersMap, "sshRSAPublicKey", properties.LinuxProfile.SSH.PublicKeys[0].KeyData)

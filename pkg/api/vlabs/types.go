@@ -269,7 +269,7 @@ type CloudProfile struct {
 	ServiceManagementVMDNSSuffix         string `json:"serviceManagementVMDNSSuffix,omitempty"`
 	ResourceManagerVMDNSSuffix           string `json:"resourceManagerVMDNSSuffix,omitempty"`
 	ContainerRegistryDNSSuffix           string `json:"containerRegistryDNSSuffix,omitempty"`
-	ResourceManagerSelfSignedCertificate string `json:"resourceManagerSelfSignedCertificate,omitempty"`
+	ResourceManagerRootCertificate       string `json:"resourceManagerRootCertificate,omitempty"`
 }
 
 // ClassicAgentPoolProfileType represents types of classic profiles

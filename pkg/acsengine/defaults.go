@@ -156,8 +156,6 @@ func SetPropertiesDefaults(cs *api.ContainerService) (bool, error) {
 
 	setOrchestratorDefaults(cs)
 
-	setCloudDefaults(cs)
-
 	setMasterNetworkDefaults(properties)
 
 	setHostedMasterNetworkDefaults(properties)
@@ -172,11 +170,6 @@ func SetPropertiesDefaults(cs *api.ContainerService) (bool, error) {
 		return false, e
 	}
 	return certsGenerated, nil
-}
-
-//setCloudDefaults for setting Default Cloud
-func setCloudDefaults(cs *api.ContainerService) {
-	//TBD should add Azure stack Cloud Spec with enviornments defaults from Cloud Profile.
 }
 
 // setOrchestratorDefaults for orchestrators

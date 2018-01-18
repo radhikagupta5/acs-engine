@@ -35,7 +35,7 @@ write_files:
   encoding: "base64"
   owner: "root"
   content: |
-    {{WrapAsVariable "cloudprofileResourceManagerSelfSignedCertificate"}}
+    {{WrapAsVariable "cloudprofileResourceManagerRootCertificate"}}
 
 - path: "/etc/systemd/system/docker.service.d/clear_mount_propagation_flags.conf"
   permissions: "0644"
