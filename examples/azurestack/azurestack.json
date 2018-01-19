@@ -5,11 +5,11 @@
       "orchestratorType": "Kubernetes",
       "orchestratorRelease": "1.7",
 	  "kubernetesConfig": {
-        "CustomHyperkubeImage": "msazurestackdocker/kubernetes:0.9005"
+        "CustomHyperkubeImage": "msazurestackdocker/kubernetes:0.9008"
       }
     },
 	"cloudProfile": {
-	    "name": "AzurestackCloud",
+	    "name": "AzureStackCloud",
         "managementPortalURL": "",
         "publishSettingsURL": "",
         "serviceManagementEndpoint": "https://management.azurestackci10.onmicrosoft.com/142020f0-3659-4239-876b-df60564cd514",

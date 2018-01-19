@@ -372,7 +372,7 @@ func (p *Properties) HasWindows() bool {
 
 // IsAzureStackCloud returns true if the cloudProfile.name is set to AzurestackCloud  
 func (c *CloudProfile) IsAzureStackCloud() bool {  
-	if c.Name == "AzurestackCloud" {  
+	if c.Name == "AzureStackCloud" {  
 		return true  
 	}  
 	return false  

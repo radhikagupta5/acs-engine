@@ -755,7 +755,7 @@ func getStorageAccountType(sizeName string) (string, error) {
 func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) template.FuncMap {
 	return template.FuncMap{
 		"IsAzureStackCloud": func() bool {  
-		return cs.Properties.CloudProfile.Name == "AzurestackCloud"  
+		return cs.Properties.CloudProfile.Name == "AzureStackCloud"  
 		},
 		"IsHostedMaster": func() bool {
 			return cs.Properties.HostedMasterProfile != nil
