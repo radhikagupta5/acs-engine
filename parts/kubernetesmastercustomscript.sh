@@ -34,6 +34,7 @@ ensureRunCommandCompleted()
         fi
         sleep 1
     done
+	sudo cp /etc/kubernetes/certs/apiserver.crt /usr/local/share/ca-certificates/
 	update-ca-certificates
 }
 
