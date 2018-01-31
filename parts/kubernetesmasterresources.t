@@ -442,11 +442,10 @@
         },
         "osProfile": {
           "adminUsername": "[variables('username')]",
-          "adminPassword": "!!123abc!!123abc",
           "computername": "[concat(variables('masterVMNamePrefix'), copyIndex(variables('masterOffset')))]",
           {{GetKubernetesMasterCustomData .}}
           "linuxConfiguration": {
-            "disablePasswordAuthentication": "false",
+            "disablePasswordAuthentication": "true",
             "ssh": {
               "publicKeys": [
                 {
