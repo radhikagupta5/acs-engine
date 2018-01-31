@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"net/http"
 	"regexp"
@@ -18,7 +17,7 @@ import (
 	"strings"
 	"text/template"
 
-	//log "github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/Azure/acs-engine/pkg/api"
 	"github.com/Azure/acs-engine/pkg/i18n"
 	"github.com/Masterminds/semver"
@@ -93,6 +92,7 @@ const (
 	azureChinaCloud        = "AzureChinaCloud"
 	azureGermanCloud       = "AzureGermanCloud"
 	azureUSGovernmentCloud = "AzureUSGovernmentCloud"
+	azureStackCloud        = "AzureStackCloud"
 )
 
 var kubernetesManifestYamls = map[string]string{
@@ -330,7 +330,10 @@ func GenerateKubeConfig(properties *api.Properties, location string) (string, er
 	kubeconfig := string(b)
 	// variable replacement
 	kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"variables('caCertificate')\"}}", base64.StdEncoding.EncodeToString([]byte(properties.CertificateProfile.CaCertificate)), -1)
-	kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"reference(concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))).dnsSettings.fqdn\"}}", FormatAzureProdFQDN(properties.MasterProfile.DNSPrefix, location), -1)
+	
+	var cloudProfileName string = getCloudProfileName(properties)
+
+	kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"reference(concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))).dnsSettings.fqdn\"}}", FormatAzureProdFQDN(properties.MasterProfile.DNSPrefix, location, cloudProfileName), -1)
 	kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVariable \"resourceGroup\"}}", properties.MasterProfile.DNSPrefix, -1)
 
 	var authInfo string
@@ -345,7 +348,7 @@ func GenerateKubeConfig(properties *api.Properties, location string) (string, er
 		}
 
 		authInfo = fmt.Sprintf("{\"auth-provider\":{\"name\":\"azure\",\"config\":{\"environment\":\"%v\",\"tenant-id\":\"%v\",\"apiserver-id\":\"%v\",\"client-id\":\"%v\"}}}",
-			GetCloudTargetEnv(location),
+			GetCloudTargetEnv(location, cloudProfileName),
 			tenantID,
 			properties.AADProfile.ServerAppID,
 			properties.AADProfile.ClientAppID)
@@ -379,17 +382,23 @@ func (t *TemplateGenerator) prepareTemplateFiles(properties *api.Properties) ([]
 }
 
 // FormatAzureProdFQDNs constructs all possible Azure prod fqdn
-func FormatAzureProdFQDNs(fqdnPrefix string) []string {
+func FormatAzureProdFQDNs(fqdnPrefix string, cloudProfileName string) []string {
 	var fqdns []string
 	for _, location := range AzureLocations {
-		fqdns = append(fqdns, FormatAzureProdFQDN(fqdnPrefix, location))
+		fqdns = append(fqdns, FormatAzureProdFQDN(fqdnPrefix, location, cloudProfileName))
 	}
 	return fqdns
 }
 
 // FormatAzureProdFQDN constructs an Azure prod fqdn
-func FormatAzureProdFQDN(fqdnPrefix string, location string) string {
+func FormatAzureProdFQDN(fqdnPrefix string, location string, cloudProfileName string) string {
+
 	FQDNFormat := AzureCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
+	
+	if cloudProfileName != "" && cloudProfileName == "AzureStackCloud" {
+		FQDNFormat = AzureStackCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
+	}
+
 	if location == "chinaeast" || location == "chinanorth" {
 		FQDNFormat = AzureChinaCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
 	} else if location == "germanynortheast" || location == "germanycentral" {
@@ -397,20 +406,24 @@ func FormatAzureProdFQDN(fqdnPrefix string, location string) string {
 	} else if location == "usgovvirginia" || location == "usgoviowa" || location == "usgovarizona" || location == "usgovtexas" {
 		FQDNFormat = AzureUSGovernmentCloud.EndpointConfig.ResourceManagerVMDNSSuffix
 	}
+
 	return fmt.Sprintf("%s.%s."+FQDNFormat, fqdnPrefix, location)
 }
 
 //GetCloudSpecConfig returns the kubenernetes container images url configurations based on the deploy target environment
 //for example: if the target is the public azure, then the default container image url should be gcrio.azureedge.net/google_container/...
 //if the target is azure china, then the default container image should be mirror.azure.cn:5000/google_container/...
-func GetCloudSpecConfig(location string) AzureEnvironmentSpecConfig {
-	switch GetCloudTargetEnv(location) {
+func GetCloudSpecConfig(location string, a *api.Properties) AzureEnvironmentSpecConfig {
+
+	switch GetCloudTargetEnv(location, getCloudProfileName(a)) {
 	case azureChinaCloud:
 		return AzureChinaCloudSpec
 	case azureGermanCloud:
 		return AzureGermanCloudSpec
 	case azureUSGovernmentCloud:
 		return AzureUSGovernmentCloud
+	case azureStackCloud:
+		return AzureStackCloudSpec
 	default:
 		return AzureCloudSpec
 	}
@@ -436,7 +449,13 @@ func ValidateDistro(cs *api.ContainerService) bool {
 // GetCloudTargetEnv determines and returns whether the region is a sovereign cloud which
 // have their own data compliance regulations (China/Germany/USGov) or standard
 //  Azure public cloud
-func GetCloudTargetEnv(location string) string {
+func GetCloudTargetEnv(location string, cloudProfileName string) string {
+	
+	// Azure Stack does not have well defined regions. The customer provide the region while deploying the stamp.
+	if cloudProfileName != "" && cloudProfileName == "AzureStackCloud" {
+		return azureStackCloud;
+	}
+
 	loc := strings.ToLower(strings.Join(strings.Fields(location), ""))
 	switch {
 	case loc == "chinaeast" || loc == "chinanorth":
@@ -453,8 +472,8 @@ func GetCloudTargetEnv(location string) string {
 func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode string) (paramsMap, error) {
 	properties := cs.Properties
 	location := cs.Location
-	parametersMap := paramsMap{}
-	cloudSpecConfig := GetCloudSpecConfig(location)
+	parametersMap := paramsMap{}	
+	cloudSpecConfig := GetCloudSpecConfig(location, properties)
 
 	// Master Parameters
 	addValue(parametersMap, "location", location)
@@ -463,7 +482,7 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 	addValue(parametersMap, "osImagePublisher", cloudSpecConfig.OSImageConfig[api.Ubuntu].ImagePublisher)
 	addValue(parametersMap, "osImageVersion", cloudSpecConfig.OSImageConfig[api.Ubuntu].ImageVersion)
 	addValue(parametersMap, "fqdnEndpointSuffix", cloudSpecConfig.EndpointConfig.ResourceManagerVMDNSSuffix)
-	addValue(parametersMap, "targetEnvironment", GetCloudTargetEnv(location))
+	addValue(parametersMap, "targetEnvironment", GetCloudTargetEnv(location, getCloudProfileName(properties)))
 	addValue(parametersMap, "linuxAdminUsername", properties.LinuxProfile.AdminUsername)
 	// masterEndpointDNSNamePrefix is the basis for storage account creation across dcos, swarm, and k8s
 	if properties.MasterProfile != nil {
@@ -755,7 +774,11 @@ func getStorageAccountType(sizeName string) (string, error) {
 func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) template.FuncMap {
 	return template.FuncMap{
 		"IsAzureStackCloud": func() bool {  
-		return cs.Properties.CloudProfile.Name == "AzureStackCloud"  
+			var cloudProfileName string = ""
+			if cs.Properties.CloudProfile != nil {
+				cloudProfileName = cs.Properties.CloudProfile.Name
+			} 
+			return cloudProfileName == "AzureStackCloud"  
 		},
 		"IsHostedMaster": func() bool {
 			return cs.Properties.HostedMasterProfile != nil
@@ -1123,35 +1146,35 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			return cs.Properties.LinuxProfile.ScriptRootURL
 		},
 		"GetMasterOSImageOffer": func() string {
-			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageOffer)
 		},
 		"GetMasterOSImagePublisher": func() string {
-			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImagePublisher)
 		},
 		"GetMasterOSImageSKU": func() string {
-			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageSku)
 		},
 		"GetMasterOSImageVersion": func() string {
-			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageVersion)
 		},
 		"GetAgentOSImageOffer": func(profile *api.AgentPoolProfile) string {
-			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageOffer)
 		},
 		"GetAgentOSImagePublisher": func(profile *api.AgentPoolProfile) string {
-			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImagePublisher)
 		},
 		"GetAgentOSImageSKU": func(profile *api.AgentPoolProfile) string {
-			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageSku)
 		},
 		"GetAgentOSImageVersion": func(profile *api.AgentPoolProfile) string {
-			cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+			cloudSpecConfig := GetCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageVersion)
 		},
 		"PopulateClassicModeDefaultValue": func(attr string) string {
@@ -1160,7 +1183,7 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 				val = ""
 			} else {
 				k8sVersion := cs.Properties.OrchestratorProfile.OrchestratorVersion
-				cloudSpecConfig := GetCloudSpecConfig(cs.Location)
+				cloudSpecConfig := GetCloudSpecConfig(cs.Location, cs.Properties)
 				switch attr {
 				case "kubernetesHyperkubeSpec":
 					val = cs.Properties.OrchestratorProfile.KubernetesConfig.KubernetesImageBase + KubeConfigs[k8sVersion]["hyperkube"]
