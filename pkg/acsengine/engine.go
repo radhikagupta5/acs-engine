@@ -333,7 +333,7 @@ func GenerateKubeConfig(properties *api.Properties, location string) (string, er
 	
 	var cloudProfileName string = getCloudProfileName(properties)
 
-	kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"reference(concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))).dnsSettings.fqdn\"}}", FormatAzureProdFQDN(properties.MasterProfile.DNSPrefix, location, cloudProfileName), -1)
+	kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"reference(concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))).dnsSettings.fqdn\"}}", FormatAzureProdFQDN(properties.MasterProfile.DNSPrefix, location, properties), -1)
 	kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVariable \"resourceGroup\"}}", properties.MasterProfile.DNSPrefix, -1)
 
 	var authInfo string
@@ -382,21 +382,29 @@ func (t *TemplateGenerator) prepareTemplateFiles(properties *api.Properties) ([]
 }
 
 // FormatAzureProdFQDNs constructs all possible Azure prod fqdn
-func FormatAzureProdFQDNs(fqdnPrefix string, cloudProfileName string) []string {
+func FormatAzureProdFQDNs(fqdnPrefix string, properties *api.Properties) []string {
 	var fqdns []string
 	for _, location := range AzureLocations {
-		fqdns = append(fqdns, FormatAzureProdFQDN(fqdnPrefix, location, cloudProfileName))
+		fqdns = append(fqdns, FormatAzureProdFQDN(fqdnPrefix, location, properties))
 	}
 	return fqdns
 }
 
 // FormatAzureProdFQDN constructs an Azure prod fqdn
-func FormatAzureProdFQDN(fqdnPrefix string, location string, cloudProfileName string) string {
+func FormatAzureProdFQDN(fqdnPrefix string, location string, properties *api.Properties) string {
 
 	FQDNFormat := AzureCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
-	
-	if cloudProfileName != "" && cloudProfileName == "AzureStackCloud" {
-		FQDNFormat = AzureStackCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
+
+	var cloudProfileName string = getCloudProfileName(properties)
+	if cloudProfileName != "" && strings.EqualFold(cloudProfileName, azureStackCloud) {
+		var cloudprofileResourceManagerVMDNSSuffix = properties.CloudProfile.ResourceManagerVMDNSSuffix
+		if cloudprofileResourceManagerVMDNSSuffix != "" {
+			// Assigning the value specified in cloud profile.
+			FQDNFormat = cloudprofileResourceManagerVMDNSSuffix
+		} else {
+			// Assigning from default values.
+			FQDNFormat = AzureStackCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
+		}	
 	}
 
 	if location == "chinaeast" || location == "chinanorth" {
@@ -450,9 +458,9 @@ func ValidateDistro(cs *api.ContainerService) bool {
 // have their own data compliance regulations (China/Germany/USGov) or standard
 //  Azure public cloud
 func GetCloudTargetEnv(location string, cloudProfileName string) string {
-	
+
 	// Azure Stack does not have well defined regions. The customer provide the region while deploying the stamp.
-	if cloudProfileName != "" && cloudProfileName == "AzureStackCloud" {
+	if cloudProfileName != "" &&  strings.EqualFold(cloudProfileName, azureStackCloud) {
 		return azureStackCloud;
 	}
 
@@ -778,7 +786,7 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			if cs.Properties.CloudProfile != nil {
 				cloudProfileName = cs.Properties.CloudProfile.Name
 			} 
-			return cloudProfileName == "AzureStackCloud"  
+			return strings.EqualFold(cloudProfileName, azureStackCloud) 
 		},
 		"IsHostedMaster": func() bool {
 			return cs.Properties.HostedMasterProfile != nil

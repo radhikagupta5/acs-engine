@@ -10,6 +10,7 @@ import (
 	"github.com/Azure/acs-engine/pkg/api/v20170701"
 	"github.com/Azure/acs-engine/pkg/api/vlabs"
 	"github.com/Masterminds/semver"
+	"strings"
 )
 
 // TypeMeta describes an individual API model object
@@ -444,9 +445,9 @@ func (p *Properties) HasWindows() bool {
 	return false
 }
 
-// IsAzureStackCloud returns true if the cloudProfile.name is set to AzureStackCloud  
+// IsAzureStackCloud returns true if it's hybrid cloud solution of AzureStack   
 func (c *CloudProfile) IsAzureStackCloud() bool {  
-	if c.Name == "AzureStackCloud" {  
+	if strings.EqualFold(c.Name, "AzureStackCloud") { 
 		return true  
 	}  
 	return false  

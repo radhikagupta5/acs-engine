@@ -370,10 +370,10 @@ func (p *Properties) HasWindows() bool {
 	return false
 }
 
-// IsAzureStackCloud returns true if the cloudProfile.name is set to AzurestackCloud  
-func (c *CloudProfile) IsAzureStackCloud() bool {  
-	if c.Name == "AzureStackCloud" {  
-		return true  
+// IsAzureStackCloud returns true if it's hybrid cloud solution of AzureStack 
+func (c *CloudProfile) IsAzureStackCloud() bool { 
+	if strings.EqualFold(c.Name, "AzureStackCloud") { 
+		return true
 	}  
 	return false  
 }
