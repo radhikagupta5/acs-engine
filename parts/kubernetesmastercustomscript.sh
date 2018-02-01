@@ -34,6 +34,11 @@ ensureRunCommandCompleted()
         fi
         sleep 1
     done
+}
+
+ensureCertificates()
+{
+    echo "Updating certificates"
 	sudo cp /etc/kubernetes/certs/apiserver.crt /usr/local/share/ca-certificates/
 	update-ca-certificates
 }
@@ -393,6 +398,9 @@ users:
     set -x
 }
 
+ensureRunCommandCompleted
+echo `date`,`hostname`, RunCmdCompleted>>/opt/m 
+
 # make sure walinuxagent doesn't get updated in the middle of running this script
 apt-mark hold walinuxagent
 
@@ -415,8 +423,7 @@ echo `date`,`hostname`, ensureJournalStart>>/opt/m
 ensureJournal
 echo `date`,`hostname`, ensureJournalDone>>/opt/m 
 
-ensureRunCommandCompleted
-echo `date`,`hostname`, RunCmdCompleted>>/opt/m 
+ensureCertificates
 
 # make sure walinuxagent doesn't get updated in the middle of running this script
 apt-mark hold walinuxagent
