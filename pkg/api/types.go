@@ -3,6 +3,7 @@ package api
 import (
 	neturl "net/url"
 
+	"strings"
 	"github.com/Azure/acs-engine/pkg/api/agentPoolOnlyApi/v20170831"
 	"github.com/Azure/acs-engine/pkg/api/v20160330"
 	"github.com/Azure/acs-engine/pkg/api/v20160930"
@@ -10,7 +11,6 @@ import (
 	"github.com/Azure/acs-engine/pkg/api/v20170701"
 	"github.com/Azure/acs-engine/pkg/api/vlabs"
 	"github.com/Masterminds/semver"
-	"strings"
 )
 
 // TypeMeta describes an individual API model object
@@ -270,6 +270,7 @@ type CloudProfile struct {
 	ResourceManagerVMDNSSuffix           string `json:"resourceManagerVMDNSSuffix,omitempty"`
 	ContainerRegistryDNSSuffix           string `json:"containerRegistryDNSSuffix,omitempty"`
 	ResourceManagerRootCertificate       string `json:"resourceManagerRootCertificate,omitempty"`
+	Location							 string `json:"location,omitempty"`
 }
 
 // AgentPoolProfile represents an agent pool definition
