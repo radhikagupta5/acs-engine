@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 
 	"github.com/Azure/acs-engine/pkg/acsengine"
+	"github.com/Azure/acs-engine/pkg/acsengine/transform"
 	"github.com/Azure/acs-engine/pkg/api"
 	"github.com/Azure/acs-engine/pkg/armhelpers"
 	"github.com/Azure/acs-engine/pkg/i18n"
@@ -110,14 +111,20 @@ func (dc *deployCmd) validate(cmd *cobra.Command, args []string) error {
 			Locale: dc.locale,
 		},
 	}
+
+	if dc.location == "" {
+		return fmt.Errorf(fmt.Sprintf("--location must be specified"))
+	}
 	// skip validating the model fields for now
 	dc.containerService, dc.apiVersion, err = apiloader.LoadContainerServiceFromFile(dc.apimodelPath, false, false, nil)
 	if err != nil {
 		return fmt.Errorf(fmt.Sprintf("error parsing the api model: %s", err.Error()))
 	}
 
-	if dc.location == "" {
-		return fmt.Errorf(fmt.Sprintf("--location must be specified"))
+	if dc.containerService.Location == "" {
+		dc.containerService.Location = dc.location
+	} else if dc.containerService.Location != dc.location {
+		return fmt.Errorf(fmt.Sprintf("--location does not match api model location"))
 	}
 
 	dc.client, err = dc.authArgs.getClient()
@@ -153,15 +160,13 @@ func autofillApimodel(dc *deployCmd) {
 		if dc.dnsPrefix == "" {
 			log.Fatalf("apimodel: missing masterProfile.dnsPrefix and --dns-prefix was not specified")
 		}
+		log.Warnf("apimodel: missing masterProfile.dnsPrefix will use %q", dc.dnsPrefix)
+		dc.containerService.Properties.MasterProfile.DNSPrefix = dc.dnsPrefix
+	}
 
-		dnsPrefix := dc.dnsPrefix
-		if dc.autoSuffix {
-			suffix := strconv.FormatInt(time.Now().Unix(), 16)
-			dnsPrefix = dnsPrefix + "-" + suffix
-		}
-
-		log.Warnf("apimodel: missing masterProfile.dnsPrefix will use %q", dnsPrefix)
-		dc.containerService.Properties.MasterProfile.DNSPrefix = dnsPrefix
+	if dc.autoSuffix {
+		suffix := strconv.FormatInt(time.Now().Unix(), 16)
+		dc.containerService.Properties.MasterProfile.DNSPrefix += "-" + suffix
 	}
 
 	if dc.outputDirectory == "" {
@@ -216,14 +221,11 @@ func autofillApimodel(dc *deployCmd) {
 			log.Warnf("created application with applicationID (%s) and servicePrincipalObjectID (%s).", applicationID, servicePrincipalObjectID)
 
 			log.Warnln("apimodel: ServicePrincipalProfile was empty, assigning role to application...")
-			for {
-				err = dc.client.CreateRoleAssignmentSimple(dc.resourceGroup, servicePrincipalObjectID)
-				if err != nil {
-					log.Debugf("Failed to create role assignment (will retry): %q", err)
-					time.Sleep(3 * time.Second)
-					continue
-				}
-				break
+
+			err = dc.client.CreateRoleAssignmentSimple(dc.resourceGroup, servicePrincipalObjectID)
+			if err != nil {
+				log.Fatalf("apimodel: could not create or assign ServicePrincipal: %q", err)
+
 			}
 
 			dc.containerService.Properties.ServicePrincipalProfile = &api.ServicePrincipalProfile{
@@ -255,17 +257,17 @@ func (dc *deployCmd) run() error {
 		log.Fatalln("failed to initialize template generator: %s", err.Error())
 	}
 
-	template, parameters, certsgenerated, err := templateGenerator.GenerateTemplate(dc.containerService, acsengine.DefaultGeneratorCode)
+	template, parameters, certsgenerated, err := templateGenerator.GenerateTemplate(dc.containerService, acsengine.DefaultGeneratorCode, false)
 	if err != nil {
 		log.Fatalf("error generating template %s: %s", dc.apimodelPath, err.Error())
 		os.Exit(1)
 	}
 
-	if template, err = acsengine.PrettyPrintArmTemplate(template); err != nil {
+	if template, err = transform.PrettyPrintArmTemplate(template); err != nil {
 		log.Fatalf("error pretty printing template: %s \n", err.Error())
 	}
 	var parametersFile string
-	if parametersFile, err = acsengine.BuildAzureParametersFile(parameters); err != nil {
+	if parametersFile, err = transform.BuildAzureParametersFile(parameters); err != nil {
 		log.Fatalf("error pretty printing template parameters: %s \n", err.Error())
 	}
 

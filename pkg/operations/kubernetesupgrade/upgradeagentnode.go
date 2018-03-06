@@ -17,7 +17,6 @@ import (
 const (
 	interval = time.Second * 1
 	retry    = time.Second * 5
-	timeout  = time.Minute * 10
 )
 
 // Compiler to verify QueueMessageProcessor implements OperationsProcessor
@@ -33,6 +32,7 @@ type UpgradeAgentNode struct {
 	ResourceGroup           string
 	Client                  armhelpers.ACSEngineClient
 	kubeConfig              string
+	timeout                 time.Duration
 }
 
 // DeleteNode takes state/resources of the master/agent node from ListNodeResources
@@ -80,18 +80,7 @@ func (kan *UpgradeAgentNode) CreateNode(poolName string, agentNo int) error {
 	deploymentSuffix := random.Int31()
 	deploymentName := fmt.Sprintf("agent-%s-%d", time.Now().Format("06-01-02T15.04.05"), deploymentSuffix)
 
-	_, err := kan.Client.DeployTemplate(
-		kan.ResourceGroup,
-		deploymentName,
-		kan.TemplateMap,
-		kan.ParametersMap,
-		nil)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return armhelpers.DeployTemplateSync(kan.Client, kan.logger, kan.ResourceGroup, deploymentName, kan.TemplateMap, kan.ParametersMap)
 }
 
 // Validate will verify that agent node has been upgraded as expected.
@@ -100,7 +89,7 @@ func (kan *UpgradeAgentNode) Validate(vmName *string) error {
 		kan.logger.Warningf("VM name was empty. Skipping node condition check")
 		return nil
 	}
-
+	kan.logger.Infof("Validating %s", *vmName)
 	var masterURL string
 	if kan.UpgradeContainerService.Properties.HostedMasterProfile != nil {
 		masterURL = kan.UpgradeContainerService.Properties.HostedMasterProfile.FQDN
@@ -108,20 +97,18 @@ func (kan *UpgradeAgentNode) Validate(vmName *string) error {
 		masterURL = kan.UpgradeContainerService.Properties.MasterProfile.FQDN
 	}
 
-	client, err := kan.Client.GetKubernetesClient(masterURL, kan.kubeConfig, interval, timeout)
+	client, err := kan.Client.GetKubernetesClient(masterURL, kan.kubeConfig, interval, kan.timeout)
 	if err != nil {
-		return err
+		return &armhelpers.DeploymentValidationError{Err: err}
 	}
 
 	retryTimer := time.NewTimer(time.Millisecond)
-	timeoutTimer := time.NewTimer(timeout)
+	timeoutTimer := time.NewTimer(kan.timeout)
 	for {
 		select {
 		case <-timeoutTimer.C:
 			retryTimer.Stop()
-			err := fmt.Errorf("Node was not ready within %v", timeout)
-			kan.logger.Errorf(err.Error())
-			return err
+			return &armhelpers.DeploymentValidationError{Err: kan.Translator.Errorf("Node was not ready within %v", kan.timeout)}
 		case <-retryTimer.C:
 			agentNode, err := client.GetNode(*vmName)
 			if err != nil {

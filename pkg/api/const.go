@@ -91,6 +91,12 @@ const (
 	DefaultDashboardAddonEnabled = true
 	// DefaultReschedulerAddonEnabled determines the acs-engine provided default for enabling kubernetes-rescheduler addon
 	DefaultReschedulerAddonEnabled = false
+	// DefaultRBACEnabled determines the acs-engine provided default for enabling kubernetes RBAC
+	DefaultRBACEnabled = true
+	// DefaultSecureKubeletEnabled determines the acs-engine provided default for securing kubelet communications
+	DefaultSecureKubeletEnabled = true
+	// DefaultMetricsServerAddonEnabled determines the acs-engine provided default for enabling kubernetes metrics-server addon
+	DefaultMetricsServerAddonEnabled = false
 	// DefaultTillerAddonName is the name of the tiller addon deployment
 	DefaultTillerAddonName = "tiller"
 	// DefaultACIConnectorAddonName is the name of the tiller addon deployment
@@ -99,4 +105,6 @@ const (
 	DefaultDashboardAddonName = "kubernetes-dashboard"
 	// DefaultReschedulerAddonName is the name of the rescheduler addon deployment
 	DefaultReschedulerAddonName = "rescheduler"
+	// DefaultMetricsServerAddonName is the name of the kubernetes metrics server addon deployment
+	DefaultMetricsServerAddonName = "metrics-server"
 )

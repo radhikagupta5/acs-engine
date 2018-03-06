@@ -1,10 +1,4 @@
 {{if .HasAadProfile}}
-    "aadServerAppId": {
-      "metadata": {
-        "description": "The server AAD application ID"
-      },
-      "type": "string"
-    },
     "aadTenantId": {
       "defaultValue": "",
       "metadata": {
@@ -12,6 +6,110 @@
       },
       "type": "string"
     },
+    "aadAdminGroupId": {
+      "defaultValue": "",
+      "metadata": {
+        "description": "The AAD default Admin group Object ID used to create a cluster-admin RBAC role."
+      },
+      "type": "string"
+    },
+{{end}}
+{{if IsHostedMaster}}
+    "kubernetesEndpoint": {
+      "metadata": {
+        "description": "The Kubernetes API endpoint https://<kubernetesEndpoint>:443"
+      },
+      "type": "string"
+    },
+{{else}}
+    "etcdServerCertificate": {
+      "metadata": {
+        "description": "The base 64 server certificate used on the master"
+      }, 
+      "type": "string"
+    }, 
+    "etcdServerPrivateKey": {
+      "metadata": {
+        "description": "The base 64 server private key used on the master."
+      }, 
+      "type": "securestring"
+    }, 
+    "etcdClientCertificate": {
+      "metadata": {
+        "description": "The base 64 server certificate used on the master"
+      }, 
+      "type": "string"
+    }, 
+    "etcdClientPrivateKey": {
+      "metadata": {
+        "description": "The base 64 server private key used on the master."
+      }, 
+      "type": "securestring"
+    },
+    "etcdPeerCertificate0": {
+      "metadata": {
+        "description": "The base 64 server certificates used on the master"
+      }, 
+      "type": "string"
+    },
+    "etcdPeerPrivateKey0": {
+      "metadata": {
+        "description": "The base 64 server private keys used on the master."
+      }, 
+      "type": "securestring"
+    },
+    {{if ge .MasterProfile.Count 3}}
+      "etcdPeerCertificate1": {
+        "metadata": {
+          "description": "The base 64 server certificates used on the master"
+        }, 
+        "type": "string"
+      }, 
+      "etcdPeerCertificate2": {
+        "metadata": {
+          "description": "The base 64 server certificates used on the master"
+        }, 
+        "type": "string"
+      },
+      "etcdPeerPrivateKey1": {
+        "metadata": {
+          "description": "The base 64 server private keys used on the master."
+        }, 
+        "type": "securestring"
+      },
+      "etcdPeerPrivateKey2": {
+        "metadata": {
+          "description": "The base 64 server private keys used on the master."
+        }, 
+        "type": "securestring"
+      },
+      {{if ge .MasterProfile.Count 5}}
+        "etcdPeerCertificate3": {
+          "metadata": {
+            "description": "The base 64 server certificates used on the master"
+          }, 
+          "type": "string"
+        }, 
+        "etcdPeerCertificate4": {
+          "metadata": {
+            "description": "The base 64 server certificates used on the master"
+          }, 
+          "type": "string"
+        },
+        "etcdPeerPrivateKey3": {
+          "metadata": {
+            "description": "The base 64 server private keys used on the master."
+          }, 
+          "type": "securestring"
+        },
+        "etcdPeerPrivateKey4": {
+          "metadata": {
+            "description": "The base 64 server private keys used on the master."
+          }, 
+          "type": "securestring"
+        },
+      {{end}}
+    {{end}}
 {{end}}
     "apiServerCertificate": {
       "metadata": {
@@ -38,14 +136,6 @@
       },
       "type": "securestring"
     },
-{{if IsHostedMaster}}
-    "kubernetesEndpoint": {
-      "metadata": {
-        "description": "The Kubernetes API endpoint https://<kubernetesEndpoint>:443"
-      },
-      "type": "string"
-    },
-{{end}}
     "clientCertificate": {
       "metadata": {
         "description": "The base 64 client certificate used to communicate with the master"
@@ -117,6 +207,12 @@
     "kubernetesNonMasqueradeCidr": {
       "metadata": {
         "description": "kubernetesNonMasqueradeCidr cluster subnet"
+      },
+      "type": "string"
+    },
+    "kubernetesKubeletClusterDomain": {
+      "metadata": {
+        "description": "--cluster-domain Kubelet config"
       },
       "type": "string"
     },
@@ -197,6 +293,13 @@
       },
       "type": "string"
     },
+    "kubernetesMetricsServerSpec": {
+      {{PopulateClassicModeDefaultValue "kubernetesMetricsServerSpec"}}
+      "metadata": {
+        "description": "The container spec for Metrics Server."
+      },
+      "type": "string"
+    },
     "kubernetesTillerSpec": {
       {{PopulateClassicModeDefaultValue "kubernetesTillerSpec"}}
       "metadata": {
@@ -229,6 +332,13 @@
       {{PopulateClassicModeDefaultValue "kubernetesTillerMemoryLimit"}}
       "metadata": {
         "description": "Helm Tiller Memory Limit."
+      },
+      "type": "string"
+    },
+    "kubernetesTillerMaxHistory": {
+      {{PopulateClassicModeDefaultValue "kubernetesTillerMaxHistory"}}
+      "metadata": {
+        "description": "Helm Tiller Max History to Store. '0' for no limit."
       },
       "type": "string"
     },
@@ -271,6 +381,27 @@
       {{PopulateClassicModeDefaultValue "kubernetesACIConnectorResourceGroup"}}
       "metadata": {
         "description": "Resource group for ACI Connector."
+      },
+      "type": "string"
+    },
+    "kubernetesACIConnectorNodeName": {
+      {{PopulateClassicModeDefaultValue "kubernetesACIConnectorNodeName"}}
+      "metadata": {
+        "description": "Node name for ACI Connector."
+      },
+      "type": "string"
+    },
+    "kubernetesACIConnectorOS": {
+      {{PopulateClassicModeDefaultValue "kubernetesACIConnectorOS"}}
+      "metadata": {
+        "description": "OS for ACI Connector."
+      },
+      "type": "string"
+    },
+    "kubernetesACIConnectorTaint": {
+      {{PopulateClassicModeDefaultValue "kubernetesACIConnectorTaint"}}
+      "metadata": {
+        "description": "Taint for ACI Connector."
       },
       "type": "string"
     },
@@ -351,41 +482,6 @@
       },
       "type": "string"
     },
-    "kubernetesNodeStatusUpdateFrequency": {
-      {{PopulateClassicModeDefaultValue "kubernetesNodeStatusUpdateFrequency"}}
-      "metadata": {
-        "description": "Kubelet config for node status update frequency interval."
-      },
-      "type": "string"
-    },
-    "kubernetesHardEvictionThreshold": {
-      {{PopulateClassicModeDefaultValue "kubernetesHardEvictionThreshold"}}
-      "metadata": {
-        "description": "Kubelet Hard Eviction threshold."
-      },
-       "type": "string"
-    },
-    "kubernetesCtrlMgrNodeMonitorGracePeriod": {
-      {{PopulateClassicModeDefaultValue "kubernetesCtrlMgrNodeMonitorGracePeriod"}}
-      "metadata": {
-        "description": "Kubernetes controller manager grace period for node status updates."
-      },
-      "type": "string"
-    },
-    "kubernetesCtrlMgrPodEvictionTimeout": {
-      {{PopulateClassicModeDefaultValue "kubernetesCtrlMgrPodEvictionTimeout"}}
-      "metadata": {
-        "description": "Kubernetes controller manager pod eviction timeout."
-      },
-      "type": "string"
-    },
-    "kubernetesCtrlMgrRouteReconciliationPeriod": {
-      {{PopulateClassicModeDefaultValue "kubernetesCtrlMgrRouteReconciliationPeriod"}}
-      "metadata": {
-        "description": "Kubernetes controller manager route reconciliation period."
-      },
-      "type": "string"
-    },
     "cloudProviderBackoff": {
       {{PopulateClassicModeDefaultValue "cloudProviderBackoff"}}
       "metadata": {
@@ -463,6 +559,21 @@
       },
       "type": "string"
     },
+    "dockerEngineVersion": {
+      {{PopulateClassicModeDefaultValue "dockerEngineVersion"}}
+      "metadata": {
+        "description": "The docker engine version to install."
+      },
+      "allowedValues": [
+         "17.05.*",
+         "17.04.*",
+         "17.03.*",
+         "1.13.*",
+         "1.12.*",
+         "1.11.*"
+       ],
+      "type": "string"
+    },
     "networkPolicy": {
       "defaultValue": "{{.OrchestratorProfile.KubernetesConfig.NetworkPolicy}}",
       "metadata": {
@@ -472,6 +583,17 @@
         "none",
         "azure",
         "calico"
+      ],
+      "type": "string"
+    },
+    "containerRuntime": {
+      "defaultValue": "{{.OrchestratorProfile.KubernetesConfig.ContainerRuntime}}",
+      "metadata": {
+        "description": "The container runtime to use (docker|clear-containers)"
+      },
+      "allowedValues": [
+        "docker",
+        "clear-containers"
       ],
       "type": "string"
     },

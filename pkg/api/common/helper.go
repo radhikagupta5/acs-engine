@@ -82,7 +82,10 @@ func GetValidPatchVersion(orchType, orchVer string) string {
 		orchVer)
 
 	if version == "" {
-		sv, _ := semver.NewVersion(orchVer)
+		sv, err := semver.NewVersion(orchVer)
+		if err != nil {
+			return ""
+		}
 		sr := fmt.Sprintf("%d.%d", sv.Major(), sv.Minor())
 
 		version = RationalizeReleaseAndVersion(
@@ -95,6 +98,9 @@ func GetValidPatchVersion(orchType, orchVer string) string {
 
 // RationalizeReleaseAndVersion return a version when it can be rationalized from the input, otherwise ""
 func RationalizeReleaseAndVersion(orchType, orchRel, orchVer string) (version string) {
+	// ignore "v" prefix in orchestrator version and release: "v1.8.0" is equivalent to "1.8.0", "v1.9" is equivalent to "1.9"
+	orchVer = strings.TrimPrefix(orchVer, "v")
+	orchRel = strings.TrimPrefix(orchRel, "v")
 	supportedVersions, defaultVersion := GetSupportedVersions(orchType)
 	if supportedVersions == nil {
 		return ""
@@ -102,7 +108,9 @@ func RationalizeReleaseAndVersion(orchType, orchRel, orchVer string) (version st
 
 	if orchRel == "" && orchVer == "" {
 		return defaultVersion
-	} else if orchVer == "" {
+	}
+
+	if orchVer == "" {
 		// Try to get latest version matching the release
 		version = ""
 		for _, ver := range supportedVersions {
